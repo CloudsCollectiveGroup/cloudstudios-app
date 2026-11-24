@@ -26,7 +26,8 @@ insert into studios (id,name,credits_pro_std,partner,partner_eur_std,partner_eur
   ('s1','Studio 1',1,null,null,null,true,1),
   ('s3','Studio 3 · Basement Studios',1,'basement',null,5,true,3),
   ('s4','Studio 4 · BlackClouds',2,'blackclouds',14,null,true,4),
-  ('s5','Studio 5 · BlackClouds Premium',4.5,'blackclouds',35,null,false,5)
+  ('s5','Studio 5 · BlackClouds Premium',4.5,'blackclouds',35,null,false,5),
+  ('lounge','Lounge, Küche und Chill-Area',1,null,null,null,false,9)   -- nur Veranstaltungen, nie mit Credits
 on conflict (id) do nothing;
 
 create table if not exists profiles (
@@ -36,7 +37,8 @@ create table if not exists profiles (
   kn         text unique,                          -- KN-0xx (Kunden)
   name       text not null,
   telefon    text,
-  aktiv      boolean not null default true,
+  aktiv      boolean not null default true,         -- false = gesperrt (kann sich nicht mehr anmelden/buchen)
+  team_rolle text default 'buchung' check (team_rolle in ('buchung','geld','marketing','betrieb','records')),
   erstellt_am timestamptz not null default now(),
   check (rolle <> 'partner' or partner is not null)
 );
@@ -46,6 +48,7 @@ create table if not exists mitgliedschaften (
   id             bigserial primary key,
   kunde          uuid not null references profiles(id),
   tarif          text not null,                    -- z. B. 'PA 202 M', 'Basement 40'
+  tarif_id       text,                             -- Verweis auf tarife(id), für Regeln wie die Partner-Obergrenze
   credits_monat  numeric(6,2) not null check (credits_monat > 0),
   nur_studios    text[],                           -- null = alle selbst buchbaren; F&F: {s1}; Basement: {s3}
   beitrag_brutto numeric(8,2) not null default 0,
@@ -95,6 +98,8 @@ create table if not exists buchungen (
   erstattet     boolean not null default false,    -- Credits zurückgegeben
   grund         text,                              -- Blockierung / geschlossene Gesellschaft
   eigennutzung_partner text,                       -- 'basement' / 'blackclouds'
+  gruppe        bigint,                            -- Veranstaltung: Lounge + Studio 1 gemeinsam
+  nicht_erschienen boolean not null default false,
   notiz         text,
   erstellt_von  uuid references profiles(id),
   erstellt_am   timestamptz not null default now(),
@@ -232,7 +237,9 @@ begin
     if p_kunde is not null and p_kunde <> auth.uid() then raise exception 'KEIN_ZUGRIFF'; end if;
     v_kunde := auth.uid();
   elsif v_rolle in ('admin','team') then
+    if not darf('eintragen') then raise exception 'KEIN_ZUGRIFF'; end if;
     if p_kunde is null then raise exception 'KUNDE_FEHLT'; end if;
+    if not (select aktiv from profiles where id = p_kunde) then raise exception 'KONTO_GESPERRT'; end if;
     v_kunde := p_kunde;
   else
     raise exception 'KEIN_ZUGRIFF';
@@ -240,7 +247,11 @@ begin
 
   select * into v_st from studios where id = p_studio;
   if not found or not v_st.aktiv then raise exception 'STUDIO_INAKTIV'; end if;
-  if v_rolle = 'kunde' and not v_st.selbst_buchbar then raise exception 'NUR_AUF_ANFRAGE'; end if;
+  if p_studio = 'lounge' then raise exception 'NUR_VERANSTALTUNG'; end if;
+  if v_rolle = 'kunde' and not v_st.selbst_buchbar
+     and not exists (select 1 from freigaben f where f.kunde = v_kunde and f.studio = p_studio) then
+    raise exception 'NUR_AUF_ANFRAGE';
+  end if;
   if p_stunden < 2 then raise exception 'MINDESTENS_2_STUNDEN'; end if;
   if p_stunden > 24 or (p_stunden * 2) <> floor(p_stunden * 2) then raise exception 'UNGUELTIGE_DAUER'; end if;
   if p_start < now() then raise exception 'VERGANGENHEIT'; end if;
@@ -252,6 +263,7 @@ begin
   v_tag := berlin_datum(p_start + make_interval(mins => (p_stunden * 60)::int) - interval '1 second');
   -- Credits müssen am Ende des Termins noch gültig sein; Beginn-Tag muss im Gültigkeitszeitraum liegen
   v_bedarf := round(p_stunden * v_st.credits_pro_std, 2);
+  perform partner_grenze_pruefen(v_kunde, p_studio, p_start, v_bedarf);
 
   select coalesce(sum(n.rest),0) into v_verfuegbar
     from nutzbare_posten(v_kunde, p_studio, v_tag) n
@@ -318,6 +330,13 @@ begin
   if b.status not in ('angefragt','gebucht','geschlossen','blockiert') then raise exception 'NICHT_STORNIERBAR'; end if;
   if lower(b.zeitraum) <= now() and v_rolle <> 'admin' then raise exception 'BEREITS_BEGONNEN'; end if;
   if p_kulanz and v_rolle <> 'admin' then raise exception 'KEIN_ZUGRIFF'; end if;
+  if v_rolle = 'team' and not darf('eintragen') then raise exception 'KEIN_ZUGRIFF'; end if;
+  if b.gruppe is not null then
+    update buchungen set status = 'storniert', storniert_von = auth.uid(), storniert_am = now()
+     where gruppe = b.gruppe and status = 'geschlossen';
+    perform log_aktion('stornieren', jsonb_build_object('veranstaltung', b.gruppe));
+    return 'STORNIERT';
+  end if;
 
   v_erstatten := b.credits > 0 and (lower(b.zeitraum) - now() > interval '24 hours' or p_kulanz);
 
@@ -343,7 +362,7 @@ returns bigint
 language plpgsql security definer set search_path = public as $$
 declare v_id bigint;
 begin
-  if not ist_team() then raise exception 'KEIN_ZUGRIFF'; end if;
+  if not darf('eintragen') then raise exception 'KEIN_ZUGRIFF'; end if;
   if p_stunden <= 0 or (p_stunden * 2) <> floor(p_stunden * 2) then raise exception 'UNGUELTIGE_DAUER'; end if;
   perform anfragen_verfallen_lassen();
   begin
@@ -363,7 +382,7 @@ create or replace function zahlung_bestaetigen(p_buchung bigint, p_rechnung text
 returns void
 language plpgsql security definer set search_path = public as $$
 begin
-  if not ist_team() then raise exception 'KEIN_ZUGRIFF'; end if;
+  if not darf('aufladen') then raise exception 'KEIN_ZUGRIFF'; end if;
   update buchungen set status = 'gebucht', rechnung = coalesce(p_rechnung, rechnung), reserviert_bis = null
    where id = p_buchung and status = 'angefragt';
   if not found then raise exception 'NICHT_ANGEFRAGT'; end if;
@@ -381,7 +400,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_rolle text := meine_rolle(); v_partner text; v_id bigint;
 begin
   if v_rolle in ('admin','team') then
-    null;
+    if not darf('eintragen') then raise exception 'KEIN_ZUGRIFF'; end if;
   elsif v_rolle = 'partner' then
     if p_geschlossen then raise exception 'KEIN_ZUGRIFF'; end if;
     select partner into v_partner from studios where id = p_studio;
@@ -411,7 +430,7 @@ returns bigint
 language plpgsql security definer set search_path = public as $$
 declare v_ab date := coalesce(p_zahlungsdatum, berlin_datum(now())); v_bis date; v_nur text[]; v_id bigint;
 begin
-  if not ist_team() then raise exception 'KEIN_ZUGRIFF'; end if;
+  if not darf('aufladen') then raise exception 'KEIN_ZUGRIFF'; end if;
   if p_art not in ('paket','bonus','label','basement') then raise exception 'UNGUELTIGE_ART'; end if;
   if p_credits <= 0 then raise exception 'UNGUELTIGE_MENGE'; end if;
   if p_art = 'paket' and p_rechnung is null then raise exception 'RECHNUNG_FEHLT'; end if;
@@ -543,6 +562,9 @@ begin
            when v_rolle in ('admin','team') then coalesce(pr.name, b.gast_name, b.grund, 'Blockiert') || coalesce(' · ' || coalesce(pr.kn, b.kn), '')
            when b.kunde = auth.uid() then 'Ihre Buchung'
            when v_rolle = 'partner' and b.eigennutzung_partner = v_partner then coalesce(b.grund, 'Eigennutzung')
+           when v_rolle = 'partner' and v_partner = 'basement' and exists (select 1 from mitgliedschaften m
+                where m.kunde = b.kunde and m.basement_pauschale) then pr.name || ' · Ihre Pauschale'
+           when b.status = 'geschlossen' then 'Veranstaltung'
            else 'Belegt'
          end,
          b.kunde = auth.uid(),
@@ -552,7 +574,7 @@ begin
     join studios s on s.id = b.studio
    where b.status in ('angefragt','gebucht','geschlossen','blockiert')
      and b.zeitraum && tstzrange(p_von, p_bis, '[)')
-     and (v_rolle <> 'partner' or s.partner = v_partner)
+     and (v_rolle <> 'partner' or s.partner = v_partner or s.id in ('s1','lounge'))
      and (b.status <> 'angefragt' or b.reserviert_bis >= now())
    order by lower(b.zeitraum);
 end $$;
@@ -627,17 +649,376 @@ drop trigger if exists bei_neuem_benutzer on auth.users;
 create trigger bei_neuem_benutzer after insert on auth.users for each row execute function neuer_benutzer();
 
 create or replace function profil_setzen(p_id uuid, p_name text default null, p_kn text default null,
-  p_rolle text default null, p_partner text default null, p_aktiv boolean default null) returns void
+  p_rolle text default null, p_partner text default null, p_aktiv boolean default null, p_team_rolle text default null) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if not ist_team() then raise exception 'KEIN_ZUGRIFF'; end if;
-  if (p_rolle is not null or p_partner is not null) and meine_rolle() <> 'admin' then raise exception 'KEIN_ZUGRIFF'; end if;
+  if (p_rolle is not null or p_partner is not null or p_team_rolle is not null) and meine_rolle() <> 'admin' then raise exception 'KEIN_ZUGRIFF'; end if;
+  if p_aktiv is not null and not darf('konten') then raise exception 'KEIN_ZUGRIFF'; end if;   -- Sperren/Entsperren
   update profiles set name = coalesce(p_name, name), kn = coalesce(p_kn, kn),
                       rolle = coalesce(p_rolle, rolle), partner = coalesce(p_partner, partner),
-                      aktiv = coalesce(p_aktiv, aktiv)
+                      aktiv = coalesce(p_aktiv, aktiv), team_rolle = coalesce(p_team_rolle, team_rolle)
    where id = p_id;
   if not found then raise exception 'NICHT_GEFUNDEN'; end if;
-  perform log_aktion('profil_setzen', jsonb_build_object('profil', p_id, 'rolle', p_rolle, 'partner', p_partner, 'aktiv', p_aktiv));
+  perform log_aktion('profil_setzen', jsonb_build_object('profil', p_id, 'rolle', p_rolle, 'partner', p_partner, 'aktiv', p_aktiv, 'team_rolle', p_team_rolle));
+end $$;
+
+-- =====================================================================
+-- Erweiterungen 24.11.2026: Tarife, Rechte, Studio-5-Bewerbung und
+-- Freigabeliste, Partner-Obergrenze, Veranstaltungen, nicht erschienen,
+-- Zustandsmeldungen, Mitteilungen, Gutschrift-Bestätigung.
+-- Puffer (Variante A): Wechselzeit ist in der Stunde enthalten, Kunden
+-- räumen bis :45. Die App zeigt das an; die Datenbank bucht volle Stunden.
+-- =====================================================================
+
+-- Tarife und Pauschalen: legt der Admin in der App an (auch neue Basement-Pauschalen)
+create table if not exists tarife (
+  id                text primary key,                 -- 'PA 201', 'Basement 40', 'Label 20'
+  name              text not null,
+  art               text not null check (art in ('mitglied','basement','label')),
+  credits_monat     numeric(6,2) not null check (credits_monat > 0),
+  beitrag_brutto    numeric(8,2) not null default 0,
+  nur_studios       text[],                           -- null = alle selbst buchbaren
+  partner_max_monat numeric(6,2),                     -- höchstens so viele Credits pro Monat in Partnerstudios
+  nur_einladung     boolean not null default false,
+  aktiv             boolean not null default true
+);
+insert into tarife (id,name,art,credits_monat,beitrag_brutto,nur_studios,partner_max_monat,nur_einladung) values
+  ('PA 201','Multi-Studio S','mitglied',20,0,null,null,false),
+  ('PA 202','Multi-Studio M','mitglied',30,0,null,null,false),
+  ('PA 203','Multi-Studio L','mitglied',40,0,null,null,false),
+  ('PA 204','Multi-Studio XL','mitglied',50,0,null,null,false),
+  ('PA 210','Family & Friends','mitglied',24,0,array['s1'],null,true),
+  ('PA 220','CloudsMember','mitglied',60,654.50,null,30,true),
+  ('Basement 40','Basement 40','basement',40,300,array['s3'],null,false),
+  ('Label 20','Clouds Records','label',20,0,array['s1'],null,false)
+on conflict (id) do nothing;
+-- Beiträge PA 201–210 im neuen Credit-Modell: in der App unter Tarife eintragen.
+
+-- Einstellungen (Schlüssel → Wert), z. B. Kriterien der Studio-5-Prüfliste
+create table if not exists einstellungen (
+  schluessel text primary key,
+  wert       jsonb not null,
+  geaendert_von uuid,
+  geaendert_am  timestamptz not null default now()
+);
+insert into einstellungen(schluessel, wert) values
+  ('s5_min_hoerer', '2'),      -- Stufe: 0 <1.000 · 1 1.000–10.000 · 2 10.000–50.000 · 3 50.000–250.000 · 4 >250.000
+  ('s5_min_releases', '1'),    -- Stufe: 0 keine · 1 1–2 · 2 3–5 · 3 6+
+  ('s5_ohne_noshow', 'true')
+on conflict (schluessel) do nothing;
+
+-- Rechte je Team-Rolle. Admin darf immer alles. Schalter setzt nur der Admin.
+create table if not exists rollen_rechte (
+  rolle text not null check (rolle in ('buchung','geld','marketing','betrieb','records')),
+  recht text not null check (recht in ('kalender','eintragen','anfragen','kunden','codes','aufladen','kulanz',
+                                       'zahlen','abrechnung','konten','einstellungen')),
+  primary key (rolle, recht)
+);
+insert into rollen_rechte(rolle, recht) values
+  ('buchung','kalender'),('buchung','eintragen'),('buchung','anfragen'),('buchung','kunden'),('buchung','codes'),
+  ('geld','kalender'),('geld','zahlen'),('geld','abrechnung'),
+  ('marketing','zahlen'),
+  ('betrieb','kalender'),('betrieb','codes'),('betrieb','anfragen'),
+  ('records','kalender'),('records','kunden')
+on conflict do nothing;
+-- 'aufladen' (Credits aufladen, Zahlung bestätigen) ist bewusst noch bei niemandem an.
+
+create or replace function darf(p_recht text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select case when pr.rolle = 'admin' then true
+                               when pr.rolle = 'team' then exists (select 1 from rollen_rechte r
+                                                                    where r.rolle = coalesce(pr.team_rolle, 'buchung') and r.recht = p_recht)
+                               else false end
+                     from profiles pr where pr.id = auth.uid() and pr.aktiv), false)
+$$;
+
+create or replace function recht_setzen(p_rolle text, p_recht text, p_an boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if meine_rolle() <> 'admin' then raise exception 'KEIN_ZUGRIFF'; end if;
+  if p_an then insert into rollen_rechte values (p_rolle, p_recht) on conflict do nothing;
+  else delete from rollen_rechte where rolle = p_rolle and recht = p_recht; end if;
+  perform log_aktion('recht_setzen', jsonb_build_object('rolle', p_rolle, 'recht', p_recht, 'an', p_an));
+end $$;
+
+create or replace function tarif_speichern(p_id text, p_name text, p_art text, p_credits numeric, p_brutto numeric,
+  p_nur text[] default null, p_partner_max numeric default null, p_einladung boolean default false, p_aktiv boolean default true)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not darf('einstellungen') then raise exception 'KEIN_ZUGRIFF'; end if;
+  insert into tarife values (p_id, p_name, p_art, p_credits, p_brutto, p_nur, p_partner_max, p_einladung, p_aktiv)
+  on conflict (id) do update set name = excluded.name, art = excluded.art, credits_monat = excluded.credits_monat,
+    beitrag_brutto = excluded.beitrag_brutto, nur_studios = excluded.nur_studios, partner_max_monat = excluded.partner_max_monat,
+    nur_einladung = excluded.nur_einladung, aktiv = excluded.aktiv;
+  perform log_aktion('tarif_speichern', jsonb_build_object('tarif', p_id, 'credits', p_credits, 'brutto', p_brutto, 'partner_max', p_partner_max));
+end $$;
+
+create or replace function einstellung_setzen(p_schluessel text, p_wert jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not darf('einstellungen') then raise exception 'KEIN_ZUGRIFF'; end if;
+  insert into einstellungen(schluessel, wert, geaendert_von) values (p_schluessel, p_wert, auth.uid())
+  on conflict (schluessel) do update set wert = excluded.wert, geaendert_von = excluded.geaendert_von, geaendert_am = now();
+  perform log_aktion('einstellung_setzen', jsonb_build_object('schluessel', p_schluessel, 'wert', p_wert));
+end $$;
+
+-- Mitgliedschaft oder Pauschale aus einem Tarif anlegen (Credits kommen über den Monatslauf)
+create or replace function mitgliedschaft_anlegen(p_kunde uuid, p_tarif text, p_ab date, p_vn text default null)
+returns bigint
+language plpgsql security definer set search_path = public as $$
+declare t tarife; v_id bigint;
+begin
+  if not darf('konten') then raise exception 'KEIN_ZUGRIFF'; end if;
+  select * into t from tarife where id = p_tarif and aktiv;
+  if not found then raise exception 'TARIF_UNBEKANNT'; end if;
+  insert into mitgliedschaften(kunde, tarif, tarif_id, credits_monat, nur_studios, beitrag_brutto, basement_pauschale, aktiv_ab, vn)
+  values (p_kunde, trim(t.id || ' ' || case when t.name <> t.id then t.name else '' end), t.id, t.credits_monat, t.nur_studios,
+          t.beitrag_brutto, t.art = 'basement', p_ab, p_vn)
+  returning id into v_id;
+  perform log_aktion('mitgliedschaft_anlegen', jsonb_build_object('mitgliedschaft', v_id, 'kunde', p_kunde, 'tarif', p_tarif));
+  return v_id;
+end $$;
+
+-- Obergrenze für Partnerstudios (z. B. PA 220: 30 Credits pro Monat). Wird in credits_buchen aufgerufen.
+create or replace function partner_grenze_pruefen(p_kunde uuid, p_studio text, p_start timestamptz, p_bedarf numeric)
+returns void
+language plpgsql stable security definer set search_path = public as $$
+declare v_max numeric; v_genutzt numeric; v_monat date := date_trunc('month', berlin_datum(p_start))::date;
+begin
+  if (select partner from studios where id = p_studio) is null then return; end if;
+  select min(t.partner_max_monat) into v_max
+    from mitgliedschaften m join tarife t on t.id = m.tarif_id
+   where m.kunde = p_kunde and t.partner_max_monat is not null
+     and m.aktiv_ab <= monatsende(v_monat) and (m.aktiv_bis is null or m.aktiv_bis >= v_monat);
+  if v_max is null then return; end if;
+  select coalesce(sum(b.credits), 0) into v_genutzt
+    from buchungen b join studios s on s.id = b.studio
+   where b.kunde = p_kunde and s.partner is not null and not b.erstattet
+     and b.status in ('gebucht','storniert')
+     and date_trunc('month', berlin_datum(lower(b.zeitraum)))::date = v_monat;
+  if v_genutzt + p_bedarf > v_max then
+    raise exception 'PARTNER_GRENZE:%', trim_scale(greatest(v_max - v_genutzt, 0));
+  end if;
+end $$;
+
+-- Veranstaltung: sperrt Lounge und Studio 1 gemeinsam (rot). Beides frei oder gar nichts.
+create or replace function veranstaltung_eintragen(p_start timestamptz, p_ende timestamptz, p_titel text)
+returns bigint
+language plpgsql security definer set search_path = public as $$
+declare v_gruppe bigint;
+begin
+  if not darf('eintragen') then raise exception 'KEIN_ZUGRIFF'; end if;
+  perform anfragen_verfallen_lassen();
+  v_gruppe := nextval(pg_get_serial_sequence('buchungen', 'id'));
+  begin
+    insert into buchungen(studio, zeitraum, status, grund, gruppe, erstellt_von)
+    values ('lounge', tstzrange(p_start, p_ende, '[)'), 'geschlossen', p_titel, v_gruppe, auth.uid()),
+           ('s1', tstzrange(p_start, p_ende, '[)'), 'geschlossen', p_titel || ' (gesperrt)', v_gruppe, auth.uid());
+  exception when exclusion_violation then raise exception 'SLOT_BELEGT';
+  end;
+  perform log_aktion('veranstaltung_eintragen', jsonb_build_object('gruppe', v_gruppe, 'start', p_start, 'titel', p_titel));
+  return v_gruppe;
+end $$;
+
+-- Studio 5: dauerhafte Freigabe (BlackClouds oder Admin)
+create table if not exists freigaben (
+  kunde  uuid not null references profiles(id),
+  studio text not null references studios(id),
+  von    uuid references profiles(id),
+  am     timestamptz not null default now(),
+  primary key (kunde, studio)
+);
+
+create or replace function freigabe_setzen(p_kunde uuid, p_an boolean, p_studio text default 's5') returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not (meine_rolle() = 'admin' or mein_partner() = (select partner from studios where id = p_studio)) then
+    raise exception 'KEIN_ZUGRIFF';
+  end if;
+  if p_an then insert into freigaben(kunde, studio, von) values (p_kunde, p_studio, auth.uid()) on conflict do nothing;
+  else delete from freigaben where kunde = p_kunde and studio = p_studio; end if;
+  perform log_aktion('freigabe_setzen', jsonb_build_object('kunde', p_kunde, 'studio', p_studio, 'an', p_an));
+end $$;
+
+-- Studio 5: Bewerbung des Kunden, Entscheidung durch BlackClouds
+create table if not exists bewerbungen (
+  id          bigserial primary key,
+  kunde       uuid not null references profiles(id),
+  studio      text not null default 's5' references studios(id),
+  wunsch_start timestamptz not null,
+  stunden     numeric(4,1) not null check (stunden >= 2),
+  kuenstler   text not null,
+  link        text not null,
+  hoerer_stufe   int not null check (hoerer_stufe between 0 and 4),
+  releases_stufe int not null check (releases_stufe between 0 and 3),
+  label       text,
+  projekt     text not null,
+  engineer    boolean not null default false,
+  regeln      boolean not null check (regeln),       -- ohne Zustimmung keine Bewerbung
+  status      text not null default 'offen' check (status in ('offen','zugesagt','abgelehnt','eingetragen')),
+  dauerhaft   boolean not null default false,
+  entschieden_von uuid references profiles(id),
+  entschieden_am  timestamptz,
+  buchung     bigint references buchungen(id),
+  erstellt_am timestamptz not null default now()
+);
+
+create or replace function bewerbung_senden(p_start timestamptz, p_stunden numeric, p_kuenstler text, p_link text,
+  p_hoerer int, p_releases int, p_label text, p_projekt text, p_engineer boolean, p_regeln boolean)
+returns bigint
+language plpgsql security definer set search_path = public as $$
+declare v_id bigint;
+begin
+  if meine_rolle() <> 'kunde' then raise exception 'KEIN_ZUGRIFF'; end if;
+  if not coalesce(p_regeln, false) then raise exception 'REGELN_NICHT_AKZEPTIERT'; end if;
+  if p_start < now() then raise exception 'VERGANGENHEIT'; end if;
+  insert into bewerbungen(kunde, wunsch_start, stunden, kuenstler, link, hoerer_stufe, releases_stufe, label, projekt, engineer, regeln)
+  values (auth.uid(), p_start, p_stunden, p_kuenstler, p_link, p_hoerer, p_releases, nullif(trim(p_label), ''), p_projekt, p_engineer, p_regeln)
+  returning id into v_id;
+  perform log_aktion('bewerbung_senden', jsonb_build_object('bewerbung', v_id));
+  return v_id;
+end $$;
+
+create or replace function bewerbung_pruefliste(p_id bigint)
+returns table(kriterium text, erfuellt boolean)
+language plpgsql stable security definer set search_path = public as $$
+declare b bewerbungen; v_h int; v_r int; v_ns boolean;
+begin
+  select * into b from bewerbungen where id = p_id;
+  if not found then raise exception 'NICHT_GEFUNDEN'; end if;
+  if not (ist_team() or mein_partner() = 'blackclouds' or b.kunde = auth.uid()) then raise exception 'KEIN_ZUGRIFF'; end if;
+  select (wert #>> '{}')::int into v_h from einstellungen where schluessel = 's5_min_hoerer';
+  select (wert #>> '{}')::int into v_r from einstellungen where schluessel = 's5_min_releases';
+  select (wert #>> '{}')::boolean into v_ns from einstellungen where schluessel = 's5_ohne_noshow';
+  return query values
+    ('Reichweite', b.hoerer_stufe >= coalesce(v_h, 2)),
+    ('Releases in 12 Monaten', b.releases_stufe >= coalesce(v_r, 1)),
+    ('Professionelles Umfeld (Label, Management, Team)', b.label is not null),
+    ('Regeln akzeptiert', b.regeln);
+  if coalesce(v_ns, true) then
+    return query select 'Keine nicht wahrgenommenen Termine'::text,
+      not exists (select 1 from buchungen x where x.kunde = b.kunde and x.nicht_erschienen);
+  end if;
+end $$;
+
+create or replace function bewerbung_entscheiden(p_id bigint, p_zusage boolean, p_dauerhaft boolean default false)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare b bewerbungen;
+begin
+  if not (meine_rolle() = 'admin' or mein_partner() = 'blackclouds') then raise exception 'KEIN_ZUGRIFF'; end if;
+  select * into b from bewerbungen where id = p_id for update;
+  if not found then raise exception 'NICHT_GEFUNDEN'; end if;
+  if b.status <> 'offen' then raise exception 'SCHON_ENTSCHIEDEN'; end if;
+  update bewerbungen set status = case when p_zusage then 'zugesagt' else 'abgelehnt' end,
+         dauerhaft = p_zusage and p_dauerhaft, entschieden_von = auth.uid(), entschieden_am = now()
+   where id = p_id;
+  if p_zusage and p_dauerhaft then
+    insert into freigaben(kunde, studio, von) values (b.kunde, b.studio, auth.uid()) on conflict do nothing;
+  end if;
+  perform log_aktion('bewerbung_entscheiden', jsonb_build_object('bewerbung', p_id, 'zusage', p_zusage, 'dauerhaft', p_dauerhaft));
+end $$;
+-- Nach Zusage trägt das Team den Termin mit credits_buchen(..., p_kunde) ein und setzt
+-- bewerbungen.buchung über die App (status 'eingetragen').
+
+-- Nicht erschienen (Team): zählt für die Studio-5-Prüfliste
+create or replace function nicht_erschienen_setzen(p_buchung bigint, p_wert boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not darf('eintragen') then raise exception 'KEIN_ZUGRIFF'; end if;
+  update buchungen set nicht_erschienen = p_wert where id = p_buchung and status = 'gebucht';
+  if not found then raise exception 'NICHT_GEFUNDEN'; end if;
+  perform log_aktion('nicht_erschienen', jsonb_build_object('buchung', p_buchung, 'wert', p_wert));
+end $$;
+
+-- Letzte Buchung in einem Raum vor jetzt (für Zustandsmeldungen). 'gemein' = Lounge/Küche + Studio 1.
+create or replace function letzte_buchung_vor(p_raum text, p_zeit timestamptz default now()) returns bigint
+language sql stable security definer set search_path = public as $$
+  select b.id from buchungen b
+   where b.studio = any(case when p_raum = 'gemein' then array['lounge','s1'] else array[p_raum] end)
+     and b.status in ('gebucht','geschlossen') and b.eigennutzung_partner is null
+     and lower(b.zeitraum) <= p_zeit
+   order by upper(b.zeitraum) desc limit 1
+$$;
+
+create table if not exists zustandsmeldungen (
+  id         bigserial primary key,
+  partner    text check (partner in ('basement','blackclouds')),   -- null = vom Team
+  raum       text not null,                                         -- s1, s3, s4, s5, gemein
+  text       text not null,
+  foto_pfad  text,                                                  -- Supabase Storage
+  buchung    bigint references buchungen(id),                       -- automatisch: letzte Buchung im Raum
+  status     text not null default 'offen' check (status in ('offen','erledigt')),
+  von        uuid references profiles(id),
+  am         timestamptz not null default now()
+);
+
+create or replace function zustand_melden(p_raum text, p_text text, p_foto text default null) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare v_partner text := mein_partner(); v_id bigint;
+begin
+  if not (ist_team() or v_partner is not null) then raise exception 'KEIN_ZUGRIFF'; end if;
+  if v_partner is not null and p_raum <> 'gemein'
+     and (select partner from studios where id = p_raum) is distinct from v_partner then raise exception 'KEIN_ZUGRIFF'; end if;
+  if p_text is null or length(trim(p_text)) < 3 then raise exception 'TEXT_FEHLT'; end if;
+  insert into zustandsmeldungen(partner, raum, text, foto_pfad, buchung, von)
+  values (v_partner, p_raum, p_text, p_foto, letzte_buchung_vor(p_raum), auth.uid())
+  returning id into v_id;
+  perform log_aktion('zustand_melden', jsonb_build_object('meldung', v_id, 'raum', p_raum));
+  return v_id;
+end $$;
+
+create or replace function zustand_erledigt(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not darf('anfragen') then raise exception 'KEIN_ZUGRIFF'; end if;
+  update zustandsmeldungen set status = 'erledigt' where id = p_id;
+  perform log_aktion('zustand_erledigt', jsonb_build_object('meldung', p_id));
+end $$;
+
+-- Mitteilungen zwischen CloudStudios und einem Partner
+create table if not exists mitteilungen (
+  id       bigserial primary key,
+  partner  text not null check (partner in ('basement','blackclouds')),
+  vom_partner boolean not null,
+  text     text not null,
+  von      uuid references profiles(id),
+  am       timestamptz not null default now(),
+  gelesen  boolean not null default false
+);
+
+create or replace function mitteilung_senden(p_partner text, p_text text) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare v_partner text := mein_partner(); v_id bigint;
+begin
+  if v_partner is not null and v_partner <> p_partner then raise exception 'KEIN_ZUGRIFF'; end if;
+  if v_partner is null and not ist_team() then raise exception 'KEIN_ZUGRIFF'; end if;
+  if p_text is null or length(trim(p_text)) = 0 then raise exception 'TEXT_FEHLT'; end if;
+  insert into mitteilungen(partner, vom_partner, text, von) values (p_partner, v_partner is not null, p_text, auth.uid())
+  returning id into v_id;
+  perform log_aktion('mitteilung_senden', jsonb_build_object('mitteilung', v_id, 'partner', p_partner));
+  return v_id;
+end $$;
+
+-- Partner bestätigt die Gutschrift eines Monats
+create table if not exists gutschrift_bestaetigungen (
+  partner text not null check (partner in ('basement','blackclouds')),
+  monat   date not null,
+  von     uuid references profiles(id),
+  am      timestamptz not null default now(),
+  primary key (partner, monat)
+);
+
+create or replace function gutschrift_bestaetigen(p_monat date) returns void
+language plpgsql security definer set search_path = public as $$
+declare v_partner text := mein_partner();
+begin
+  if v_partner is null then raise exception 'KEIN_ZUGRIFF'; end if;
+  insert into gutschrift_bestaetigungen(partner, monat, von)
+  values (v_partner, date_trunc('month', p_monat)::date, auth.uid()) on conflict do nothing;
+  perform log_aktion('gutschrift_bestaetigen', jsonb_build_object('partner', v_partner, 'monat', p_monat));
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -670,11 +1051,39 @@ create policy protokoll_lesen on protokoll for select to authenticated using (me
 drop policy if exists anfragen_lesen on anfragen;
 create policy anfragen_lesen on anfragen for select to authenticated using (kunde = auth.uid() or ist_team());
 
+alter table tarife enable row level security;
+alter table einstellungen enable row level security;
+alter table rollen_rechte enable row level security;
+alter table freigaben enable row level security;
+alter table bewerbungen enable row level security;
+alter table zustandsmeldungen enable row level security;
+alter table mitteilungen enable row level security;
+alter table gutschrift_bestaetigungen enable row level security;
+drop policy if exists tarife_lesen on tarife;
+create policy tarife_lesen on tarife for select to authenticated using (true);
+drop policy if exists einstellungen_lesen on einstellungen;
+create policy einstellungen_lesen on einstellungen for select to authenticated using (true);
+drop policy if exists rechte_lesen on rollen_rechte;
+create policy rechte_lesen on rollen_rechte for select to authenticated using (ist_team());
+drop policy if exists freigaben_lesen on freigaben;
+create policy freigaben_lesen on freigaben for select to authenticated using (kunde = auth.uid() or ist_team() or mein_partner() = 'blackclouds');
+drop policy if exists bewerbungen_lesen on bewerbungen;
+create policy bewerbungen_lesen on bewerbungen for select to authenticated using (kunde = auth.uid() or ist_team() or mein_partner() = 'blackclouds');
+drop policy if exists zustand_lesen on zustandsmeldungen;
+create policy zustand_lesen on zustandsmeldungen for select to authenticated using (ist_team() or partner = mein_partner());
+drop policy if exists mitteilungen_lesen on mitteilungen;
+create policy mitteilungen_lesen on mitteilungen for select to authenticated using (ist_team() or partner = mein_partner());
+drop policy if exists gutschrift_lesen on gutschrift_bestaetigungen;
+create policy gutschrift_lesen on gutschrift_bestaetigungen for select to authenticated using (meine_rolle() = 'admin' or partner = mein_partner());
+
 revoke all on all tables in schema public from anon, authenticated;
 grant select on all tables in schema public to authenticated;
 revoke execute on all functions in schema public from public, anon;
 grant execute on function credits_buchen, max_stunden, stornieren, anfrage_eintragen, zahlung_bestaetigen,
   blockieren, credits_aufladen, korrektur, verfall_buchen, mitglieder_monatslauf, konto, kalender,
-  partner_abrechnung, anfrage_senden, profil_setzen, meine_rolle, ist_team, mein_partner to authenticated;
+  partner_abrechnung, anfrage_senden, profil_setzen, meine_rolle, ist_team, mein_partner,
+  darf, recht_setzen, tarif_speichern, einstellung_setzen, mitgliedschaft_anlegen, veranstaltung_eintragen,
+  freigabe_setzen, bewerbung_senden, bewerbung_entscheiden, bewerbung_pruefliste, nicht_erschienen_setzen,
+  zustand_melden, zustand_erledigt, mitteilung_senden, gutschrift_bestaetigen, letzte_buchung_vor to authenticated;
 -- interne Hilfsfunktionen nicht direkt aufrufbar
-revoke execute on function posten_rest, nutzbare_posten, anfragen_verfallen_lassen, log_aktion, neuer_benutzer from authenticated;
+revoke execute on function posten_rest, nutzbare_posten, anfragen_verfallen_lassen, log_aktion, neuer_benutzer, partner_grenze_pruefen from authenticated;
