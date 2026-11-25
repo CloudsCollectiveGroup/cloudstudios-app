@@ -26,5 +26,5 @@ ersetze("function naechsteKN() { return 'KN-' + (Math.max(...Object.values(S.kun
         "function naechsteKN() { return 'KN - ' + String(Math.max(0, ...Object.values(S.kunden).map((v) => +((String(v.kn).match(/(\\d+)/) || [0, 0])[1]))) + 1).padStart(3, '0'); }")
 ersetze('${kunde ? `<div class="zeile"><span class="hinweis">Kundennummer</span><b class="mono" style="color:var(--gelb)">${naechsteKN()}</b></div>` : \'\'}',
         '${kunde ? `<label>Kundennummer (bestehende KN übernehmen)<input name="kn" value="${naechsteKN()}" autocomplete="off" style="min-height:48px"></label>` : \'\'}')
-(ROOT / 'web' / 'index.html').write_text(src)
+(ROOT / 'docs' / 'index.html').write_text(src)
 print('web/index.html gebaut,', len(src), 'Zeichen')

@@ -10,7 +10,7 @@ def wert(v):
     return v
 
 class H(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *a, **k): super().__init__(*a, directory=str(ROOT / 'web'), **k)
+    def __init__(self, *a, **k): super().__init__(*a, directory=str(ROOT / 'docs'), **k)
     def log_message(self, *a): pass
     def do_GET(self):
         if self.path.startswith('/config.js'):
@@ -20,7 +20,7 @@ class H(http.server.SimpleHTTPRequestHandler):
             self.send_response(200); self.send_header('Content-Type', 'application/javascript'); self.end_headers()
             self.wfile.write((ROOT / 'tests/web/mock.js').read_bytes()); return
         if self.path.startswith('/test.html'):
-            html = (ROOT / 'web/index.html').read_text().replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js', 'mock.js')
+            html = (ROOT / 'docs/index.html').read_text().replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js', 'mock.js')
             self.send_response(200); self.send_header('Content-Type', 'text/html; charset=utf-8'); self.end_headers(); self.wfile.write(html.encode()); return
         return super().do_GET()
     def do_POST(self):
