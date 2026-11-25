@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CloudStudios</title>
-<meta name="theme-color" content="#07070A">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CloudStudios">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="bilder/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -94,11 +95,14 @@ label{font-size:12px;color:var(--leise);display:flex;flex-direction:column;gap:4
 .vollbild .toast{position:fixed;left:50%;transform:translateX(-50%);width:min(456px,calc(100vw - 24px));top:12px}
 
 body.live #dev,body.live #test{display:none!important}
-#live-leiste{position:fixed;right:10px;top:max(10px,env(safe-area-inset-top));z-index:30}
+#live-leiste{position:absolute;right:12px;top:calc(env(safe-area-inset-top) + 14px);z-index:30}
+html{background:#05060B}
+.vollbild .handy{padding-top:calc(18px + env(safe-area-inset-top))}
+.vollbild .toast{top:calc(12px + env(safe-area-inset-top))}
 
 /* ---------- Große Bildschirme: iPad, MacBook, Mac Studio ---------- */
 @media (min-width: 820px) {
-  .vollbild .handy{max-width:1320px;padding:28px 36px 56px 140px}
+  .vollbild .handy{max-width:1320px;padding:calc(28px + env(safe-area-inset-top)) 36px 56px 140px}
   .vollbild .handynav{left:18px;top:50%;bottom:auto;transform:translateY(-50%);width:100px;max-width:none;flex-direction:column;justify-content:flex-start;gap:6px;padding:12px 8px;border-radius:30px}
   .vollbild .handynav button{flex:none;min-height:66px;width:100%;font-size:11.5px}
   .vollbild .toast{left:calc(50% + 60px)}
@@ -106,7 +110,7 @@ body.live #dev,body.live #test{display:none!important}
   .handy .liste:has(> .karte):not(form):not(:has(form,input,select,textarea)){display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
   .handy .raster:not(:has(input,select,textarea))[style*="repeat(2"]{grid-template-columns:repeat(4,minmax(0,1fr))!important}
   .handy h2{font-size:34px}
-  #live-leiste{right:24px;top:20px}
+  #live-leiste{position:fixed;right:24px;top:calc(20px + env(safe-area-inset-top))}
 }
 @media (min-width: 1280px) {
   .vollbild .handy{padding-left:180px}

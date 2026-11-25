@@ -2,7 +2,7 @@
  "name": "CloudStudios",
  "short_name": "CloudStudios",
  "start_url": "./",
- "display": "standalone",
+ "display": "standalone", "orientation": "any",
  "background_color": "#07070A",
  "theme_color": "#07070A",
  "icons": [
