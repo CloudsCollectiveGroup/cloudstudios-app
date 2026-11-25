@@ -199,3 +199,11 @@ grant execute on function meine_codes() to authenticated;
 -- Nur angemeldete Nutzer
 revoke execute on function app_daten(timestamptz, timestamptz), kunde_notiz(uuid, text), mitteilungen_gelesen(text), anfrage_status(bigint, text), anfrage_neu(text, text, jsonb, text), tuercode_setzen(date, text), meine_codes() from public, anon;
 revoke all on table tuercodes from anon, authenticated;
+
+-- Server-Funktion "einladen" arbeitet mit der Service-Rolle (Projekt ohne automatische API-Rechte angelegt)
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant execute on all functions in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
