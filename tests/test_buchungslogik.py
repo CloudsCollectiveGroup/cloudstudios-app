@@ -14,7 +14,7 @@ def sh(cmd):
 
 def frische_db():
     sh(f'psql -h /tmp -p 5433 -U postgres -q -c "drop database if exists {DB}" -c "create database {DB}"')
-    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql"):
+    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql", "supabase/04_push.sql"):
         sh(f"psql -h /tmp -p 5433 -U postgres -q -v ON_ERROR_STOP=1 -d {DB} -f {ROOT}/{f}")
 
 frische_db()
@@ -358,6 +358,35 @@ check("Kunde setzt keinen Türcode", A.fehler("select tuercode_setzen(current_da
 C.q("select tuercode_setzen(current_date + 1,'4711')"); C.q("select tuercode_setzen(current_date + 9,'0815')")
 check("Team sieht Türcodes", len(ad(C)["codes"]) == 2)
 check("Kunde ohne Buchung am Tag sieht keinen Code", ad(B)["codes"] == {} or all(v != "0815" for v in ad(B)["codes"].values()))
+
+print("20. Push-Mitteilungen")
+def q_push(uid): return su("select art, titel, text from push_warteschlange where nutzer=%s order by id", uid)
+check("Ohne Gerät: Test geht nicht", A.fehler("select push_test()") == "KEIN_GERAET")
+A.q("select push_abo_speichern('https://push.example/anna','p','a','iPhone')")
+C.q("select push_abo_speichern('https://push.example/cem','p','a','Mac')")
+T.q("select push_abo_speichern('https://push.example/team','p','a','Handy')")
+PB.q("select push_abo_speichern('https://push.example/base','p','a','Handy')")
+check("Kunde sieht nur eigenen Status", ad(A) is not None and A.q("select push_status()")[0][0]["geraete"] == 1)
+check("Kunde liest Warteschlange nicht direkt", A.fehler("select * from push_warteschlange") is not None)
+check("Kunde kann push_an nicht direkt aufrufen", A.fehler("select push_an(%s,'x','x','x')", anna) is not None)
+A.q("select push_test()")
+check("Testmitteilung eingereiht", any(r[0] == "test" for r in q_push(anna)))
+bid = T.q("select anfrage_eintragen('s3', %s, 4, 'Anna', 'KN-101', %s, 60)", t(20, 10), anna)[0][0]
+check("Neue Anfrage: Admin bekommt Push", any(r[0] == "anfrage" for r in q_push(cem)))
+check("Neue Anfrage: Ersteller (Team) bekommt keinen", not any(r[0] == "anfrage" for r in q_push(team)))
+T.q("select zahlung_bestaetigen(%s)", bid)
+check("Bestätigt: Kunde bekommt Push", any(r[0] == "bestaetigt" for r in q_push(anna)))
+check("Bestätigt: Basement bekommt Buchung in Studio 3", any(r[0] == "p_buchung" for r in q_push(base)))
+A.q("select push_einstellungen_setzen(array['storno'])")
+T.q("select stornieren(%s)", bid)
+check("Abgewählte Art kommt nicht (Storno)", not any(r[0] == "storno" for r in q_push(anna)))
+check("Storno: Basement bekommt Push", any(r[0] == "p_storno" for r in q_push(base)))
+check("Ohne Gerät keine Einträge (Lea)", q_push(lea) == [])
+PB.q("select mitteilung_senden('basement','Kurze Frage')")
+check("Mitteilung vom Partner: Team bekommt Push", any(r[0] == "mitteilung" for r in q_push(team)))
+su("select push_zeitplan()")
+n1 = len(q_push(cem)); su("select push_zeitplan()")
+check("Zeitplan erzeugt keine Doppelten", len(q_push(cem)) == n1)
 
 print(f"\n{ok} bestanden, {len(fails)} fehlgeschlagen")
 if fails: print("Fehlgeschlagen:", *fails, sep="\n  - "); sys.exit(1)

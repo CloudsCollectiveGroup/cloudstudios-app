@@ -219,8 +219,99 @@
   function leiste() {
     let el = document.getElementById('live-leiste');
     if (!el) { el = document.createElement('div'); el.id = 'live-leiste'; document.body.appendChild(el); }
-    el.innerHTML = ICH ? `<button data-live-aus style="min-height:36px;padding:0 12px;border-radius:999px;font-size:12px;opacity:.75" title="${C.esc(ICH.name)}">Abmelden</button>` : '';
+    el.innerHTML = ICH ? `<button data-live-push style="min-height:36px;padding:0 12px;border-radius:999px;font-size:12px;opacity:.85;margin-right:6px" title="Push-Mitteilungen">🔔 Mitteilungen</button><button data-live-aus style="min-height:36px;padding:0 12px;border-radius:999px;font-size:12px;opacity:.75" title="${C.esc(ICH.name)}">Abmelden</button>` : '';
   }
+
+  // ---------- Push-Mitteilungen ----------
+  const PUSH_ARTEN = {
+    kunde: [['bestaetigt', 'Buchung bestätigt'], ['verbindlich', 'Buchung verbindlich (24 Std. vorher, Türcode in der App)'], ['storno', 'Storno oder abgelaufene Reservierung'], ['ablauf', 'Credits laufen in 7 Tagen ab']],
+    partner: [['p_buchung', 'Neue Buchung in Ihrem Studio'], ['p_storno', 'Stornierung in Ihrem Studio'], ['mitteilung', 'Mitteilung von CloudStudios'], ['abrechnung', 'Abrechnung zur Prüfung (am 1.)']],
+    team: [['anfrage', 'Neue Anfrage'], ['buchung', 'Buchungen und Stornos'], ['zahlung', 'Offene Zahlungen (täglich ab 10 Uhr)'], ['mitteilung', 'Mitteilungen von Partnern'], ['zustand', 'Zustandsmeldungen']],
+  };
+  const pushArten = () => {
+    const r = ICH?.rolle; let l = r === 'kunde' ? PUSH_ARTEN.kunde : r === 'partner' ? PUSH_ARTEN.partner.slice() : PUSH_ARTEN.team.slice();
+    if (r === 'admin' || (r === 'partner' && ICH.partner === 'blackclouds')) l.push(['bewerbung', 'Studio-5-Bewerbungen']);
+    return l;
+  };
+  const pushMoeglich = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const istIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const alsApp = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const b64 = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4), r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+  const geraetName = () => { const u = navigator.userAgent; return (/iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : 'Gerät') + (alsApp() ? ' · App' : ' · Browser'); };
+  async function swReg() { return navigator.serviceWorker.getRegistration() .then((r) => r || navigator.serviceWorker.register('sw.js')); }
+  let PUSH = { offen: false, laden: false, status: null, hier: false, meldung: '' };
+  async function pushLaden() {
+    PUSH.laden = true; pushZeigen();
+    try {
+      PUSH.status = await rpc('push_status');
+      PUSH.hier = false;
+      if (pushMoeglich() && Notification.permission === 'granted') {
+        const reg = await swReg(); const sub = await reg.pushManager.getSubscription();
+        PUSH.hier = !!sub && (PUSH.status.endpoints || []).includes(sub.endpoint);
+        if (sub && !PUSH.hier) { const j = sub.toJSON(); await rpc('push_abo_speichern', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_geraet: geraetName() }); PUSH.hier = true; PUSH.status = await rpc('push_status'); }
+      }
+    } catch (e) { PUSH.meldung = 'Konnte den Status nicht laden.'; }
+    PUSH.laden = false; pushZeigen();
+  }
+  function pushZeigen() {
+    let el = document.getElementById('live-push');
+    if (!PUSH.offen) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'live-push'; document.body.appendChild(el); }
+    const aus = new Set(PUSH.status?.aus || []);
+    let kopf;
+    if (!pushMoeglich() && istIOS() && !alsApp()) kopf = `<div class="hinweis" style="color:#FFD27A">Auf dem iPhone funktionieren Push-Mitteilungen nur aus der App auf dem Home-Bildschirm: in Safari unten auf <b>Teilen</b> tippen, dann <b>„Zum Home-Bildschirm“</b>. Danach die App von dort öffnen und hier einschalten.</div>`;
+    else if (!pushMoeglich()) kopf = `<div class="hinweis">Dieser Browser kann keine Push-Mitteilungen empfangen.</div>`;
+    else if (Notification.permission === 'denied') kopf = `<div class="hinweis" style="color:#FF8A8D">Mitteilungen sind für diese App in den Geräte-Einstellungen blockiert. Dort erlauben, dann hier einschalten.</div>`;
+    else kopf = PUSH.hier
+      ? `<div class="zeile" style="gap:8px;align-items:center"><span style="color:#7FE0AE">● Auf diesem Gerät eingeschaltet</span><button data-push-aus style="margin-left:auto;min-height:36px;font-size:12px">Ausschalten</button></div>`
+      : `<button class="primaer" data-push-an style="width:100%;min-height:50px">Push auf diesem Gerät einschalten</button>`;
+    el.innerHTML = `<div style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center" data-push-zu>
+      <div class="karte" style="width:min(520px,100%);max-height:88vh;overflow:auto;border-radius:26px 26px 0 0;padding:20px 18px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(22,28,44,.98),rgba(8,11,20,.99))">
+        <div class="zeile" style="align-items:center"><h3 style="font-size:20px;margin:0">Push-Mitteilungen</h3><button data-push-zu style="margin-left:auto;width:40px;min-height:40px;padding:0">✕</button></div>
+        <div class="hinweis" style="margin:6px 0 14px">Mitteilungen direkt aufs Handy. Gilt pro Gerät; die Auswahl unten gilt für alle Ihre Geräte.</div>
+        ${PUSH.laden ? '<div class="hinweis">Lädt …</div>' : kopf}
+        <div class="mono" style="margin-top:18px">WORÜBER?</div>
+        <div class="liste" style="margin-top:8px;gap:6px">${pushArten().map(([k, n]) => `<label class="karte" style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;text-align:left;gap:12px;padding:12px 14px;cursor:pointer;font-size:15px;color:var(--ink,#F2F4F8)"><input type="checkbox" data-push-art="${k}" ${aus.has(k) ? '' : 'checked'} style="flex:none;width:22px !important;height:22px !important;min-height:0 !important;padding:0 !important;accent-color:#4DA3FF;margin:0"><span style="flex:1">${C.esc(n)}</span></label>`).join('')}</div>
+        ${PUSH.status?.geraete ? `<div class="hinweis" style="margin-top:10px">${PUSH.status.geraete} ${PUSH.status.geraete === 1 ? 'Gerät' : 'Geräte'} eingeschaltet.</div><button data-push-test style="margin-top:10px;width:100%;min-height:44px">Testmitteilung senden</button>` : ''}
+        <div class="hinweis" id="live-push-msg" style="margin-top:10px">${C.esc(PUSH.meldung || '')}</div>
+      </div></div>`;
+  }
+  document.addEventListener('click', async (e) => {
+    const t = e.target.closest('[data-live-push],[data-push-zu],[data-push-an],[data-push-aus],[data-push-test]'); if (!t) return;
+    e.stopImmediatePropagation();
+    const d = t.dataset;
+    if ('pushZu' in d) { if (e.target === t || t.tagName === 'BUTTON') { PUSH.offen = false; pushZeigen(); } return; }
+    if ('livePush' in d) { PUSH.offen = true; PUSH.meldung = ''; pushLaden(); return; }
+    if ('pushAn' in d) {
+      try {
+        const erlaubt = await Notification.requestPermission();
+        if (erlaubt !== 'granted') { PUSH.meldung = 'Ohne Erlaubnis keine Mitteilungen.'; pushZeigen(); return; }
+        const reg = await swReg(); await navigator.serviceWorker.ready;
+        const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(cfg.push) });
+        const j = sub.toJSON();
+        await rpc('push_abo_speichern', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_geraet: geraetName() });
+        PUSH.meldung = 'Eingeschaltet.'; await pushLaden();
+      } catch (err) { PUSH.meldung = 'Einschalten hat nicht geklappt. Bitte nochmal versuchen.'; pushZeigen(); }
+      return;
+    }
+    if ('pushAus' in d) {
+      try { const reg = await swReg(); const sub = await reg.pushManager.getSubscription(); if (sub) { await rpc('push_abo_loeschen', { p_endpoint: sub.endpoint }); await sub.unsubscribe(); } PUSH.meldung = 'Auf diesem Gerät ausgeschaltet.'; await pushLaden(); }
+      catch (_) { PUSH.meldung = 'Ausschalten hat nicht geklappt.'; pushZeigen(); }
+      return;
+    }
+    if ('pushTest' in d) {
+      try { await rpc('push_test'); PUSH.meldung = 'Testmitteilung ist unterwegs – sollte in wenigen Sekunden ankommen.'; }
+      catch (_) { PUSH.meldung = 'Test fehlgeschlagen.'; }
+      pushZeigen(); return;
+    }
+  }, true);
+  document.addEventListener('change', async (e) => {
+    const k = e.target.dataset?.pushArt; if (!k) return;
+    const aus = new Set(PUSH.status?.aus || []); if (e.target.checked) aus.delete(k); else aus.add(k);
+    try { await rpc('push_einstellungen_setzen', { p_aus: [...aus] }); PUSH.status = { ...PUSH.status, aus: [...aus] }; }
+    catch (_) { e.target.checked = !e.target.checked; PUSH.meldung = 'Nicht gespeichert.'; pushZeigen(); }
+  }, true);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
   // ---------- Aktionen ----------
   document.addEventListener('click', (e) => { if (e.target.closest('[data-kontoart]')) S.kontoMeldung = null; }, true);
