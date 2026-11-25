@@ -176,7 +176,7 @@
   async function laden() {
     if (ladeLauf) return ladeLauf;
     ladeLauf = (async () => {
-      try { abbilden(await rpc('app_daten', {})); await abrechnungLaden(); C.render(); leiste(); }
+      try { abbilden(await rpc('app_daten', {})); await abrechnungLaden(); C.render(); leiste(); if (S.kontoMeldung) C.meldung('f-konto-msg', S.kontoMeldung.t, S.kontoMeldung.ok); }
       finally { ladeLauf = null; }
     })();
     return ladeLauf;
@@ -220,6 +220,7 @@
   }
 
   // ---------- Aktionen ----------
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-kontoart]')) S.kontoMeldung = null; }, true);
   const UI_ONLY = ['aktezu', 'detailzu', 'detail', 'testzu', 'testliste', 'devtoggle', 'ansicht', 'ktag', 'kftag', 'kpTag', 'ktab', 'fstudio', 'fextra', 'galerie', 'raumzu', 'raum',
     'raumbuchen', 'ptab', 'etab', 'kontoart', 'brettziel', 'akte', 'mtab', 'ikal', 'itab', 'iart', 'schnell', 'korbplus', 'korbminus', 'bmodus', 'eart', 'egetraenk', 'esnacks', 'aufmax', 'gelesen'];
   const anfrage = (id) => S.anfragen.find((x) => x.id === +id);
@@ -425,7 +426,7 @@
 
   // Konto anlegen: Einladungslink über die Supabase-Funktion "einladen"
   async function kontoAnlegen(f) {
-    const g = (k) => new FormData(f).get(k), a = S.kontoArt, msg = (t, ok) => C.meldung('f-konto-msg', t, ok);
+    const g = (k) => new FormData(f).get(k), a = S.kontoArt, msg = (t, ok) => { S.kontoMeldung = { t, ok }; C.meldung('f-konto-msg', t, ok); };
     const name = String(g('name') || '').trim(), mail = String(g('mail') || '').trim().toLowerCase(), tel = String(g('tel') || '').trim();
     if (!name || !mail) return msg('Name und E-Mail fehlen.', false);
     const kunde = ['paket', 'mitglied', 'basement', 'label'].includes(a);
@@ -433,7 +434,7 @@
     const body = { mail, name, tel: tel || null, kn, rolle: kunde ? 'kunde' : a, partner: a === 'partner' ? g('partner') : null, team_rolle: a === 'team' ? g('rolle') : null, redirect: location.origin + location.pathname };
     msg('Konto wird angelegt …', true);
     const { data, error } = await sb.functions.invoke('einladen', { body });
-    if (error || !data?.id) { let t = error?.message || 'Unbekannter Fehler'; try { t = (await error.context.json()).fehler || t; } catch (_) {} return msg('Nicht angelegt: ' + t, false); }
+    if (error || !data?.id) { let t = error?.message || 'Unbekannter Fehler'; try { t = (await error.context.json()).fehler || t; } catch (_) {} C.toast('Konto nicht angelegt: ' + t); return msg('Nicht angelegt: ' + t, false); }
     const id = data.id; let info = '';
     try {
       if (a === 'paket') {
@@ -479,7 +480,9 @@
   }
   sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT') { ICH = null; anmeldeSeite(); } });
   // Daten frisch halten: bei Rückkehr in die App und alle 60 Sekunden
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && ICH) laden().catch(() => {}); });
-  setInterval(() => { if (!document.hidden && ICH && !document.activeElement?.matches('input,textarea,select')) laden().catch(() => {}); }, 60000);
+  const amTippen = () => document.activeElement?.matches('input,textarea,select') ||
+    [...document.querySelectorAll('form input:not([type=checkbox]):not([type=hidden]), form textarea')].some((i) => i.value && i.defaultValue !== i.value);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ICH && !amTippen()) laden().catch(() => {}); });
+  setInterval(() => { if (!document.hidden && ICH && !amTippen()) laden().catch(() => {}); }, 60000);
   start();
 })();
