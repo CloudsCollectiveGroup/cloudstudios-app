@@ -219,6 +219,7 @@
   function leiste() {
     let el = document.getElementById('live-leiste');
     if (!el) { el = document.createElement('div'); el.id = 'live-leiste'; document.body.appendChild(el); }
+    if (ICH) setTimeout(() => pushPruefen(), 1500);
     el.innerHTML = ICH ? `<button data-live-push style="min-height:36px;padding:0 12px;border-radius:999px;font-size:12px;opacity:.85;margin-right:6px" title="Push-Mitteilungen">🔔 Mitteilungen</button><button data-live-aus style="min-height:36px;padding:0 12px;border-radius:999px;font-size:12px;opacity:.75" title="${C.esc(ICH.name)}">Abmelden</button>` : '';
   }
 
@@ -240,7 +241,29 @@
   const geraetName = () => { const u = navigator.userAgent; return (/iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : 'Gerät') + (alsApp() ? ' · App' : ' · Browser'); };
   async function swReg() { return navigator.serviceWorker.getRegistration() .then((r) => r || navigator.serviceWorker.register('sw.js')); }
   let PUSH = { offen: false, laden: false, status: null, hier: false, meldung: '' };
+  // Gerät mit veraltetem Schlüssel neu anmelden (sonst kommen keine Mitteilungen an)
+  let pushGeprueft = false;
+  async function pushPruefen() {
+    if (pushGeprueft || !ICH || !pushMoeglich() || Notification.permission !== 'granted') return;
+    pushGeprueft = true;
+    try {
+      const reg = await swReg(); const sub = await reg.pushManager.getSubscription(); if (!sub) return;
+      const schluessel = await rpc('push_oeffentlich'); if (!schluessel) return;
+      const soll = b64(schluessel), ist = new Uint8Array(sub.options?.applicationServerKey || new ArrayBuffer(0));
+      const gleich = ist.length === soll.length && ist.every((x, i) => x === soll[i]);
+      let neu = sub;
+      if (!gleich) {
+        try { await rpc('push_abo_loeschen', { p_endpoint: sub.endpoint }); } catch (_) {}
+        await sub.unsubscribe();
+        await navigator.serviceWorker.ready;
+        neu = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: soll });
+      }
+      const j = neu.toJSON();
+      await rpc('push_abo_speichern', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_geraet: geraetName() });
+    } catch (_) { pushGeprueft = false; }
+  }
   async function pushLaden() {
+    await pushPruefen().catch(() => {});
     PUSH.laden = true; pushZeigen();
     try {
       PUSH.status = await rpc('push_status');

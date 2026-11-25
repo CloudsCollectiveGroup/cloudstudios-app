@@ -32,7 +32,7 @@ Deno.serve(async () => {
   let gesendet = 0, entfernt = 0;
   for (const m of offen ?? []) {
     const { data: abos } = await db.from("push_abos").select("id, endpoint, p256dh, auth").eq("nutzer", m.nutzer);
-    let ok = 0;
+    let ok = 0; const codes: string[] = [];
     for (const a of abos ?? []) {
       try {
         await webpush.sendNotification({ endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } },
@@ -40,10 +40,12 @@ Deno.serve(async () => {
         ok++; gesendet++;
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) { await db.from("push_abos").delete().eq("id", a.id); entfernt++; }
+        codes.push(String(code ?? "x"));
+        // 404/410: Gerät abgemeldet · 403: Gerät mit altem Schlüssel angemeldet → Abo verwerfen, App meldet neu an
+        if (code === 404 || code === 410 || code === 403) { await db.from("push_abos").delete().eq("id", a.id); entfernt++; }
       }
     }
-    await db.from("push_warteschlange").update({ ergebnis: `${ok}/${abos?.length ?? 0}` }).eq("id", m.id);
+    await db.from("push_warteschlange").update({ ergebnis: `${ok}/${abos?.length ?? 0}` + (codes.length ? ` (${codes.join(",")})` : "") }).eq("id", m.id);
   }
   return new Response(JSON.stringify({ eintraege: offen?.length ?? 0, gesendet, entfernt }), { headers: { "Content-Type": "application/json" } });
 });

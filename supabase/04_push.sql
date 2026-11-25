@@ -114,6 +114,9 @@ begin
   if tg_op = 'INSERT' then
     if new.status = 'angefragt' then
       perform push_an_team('anfrage', 'Neue Anfrage', v_studio || ' · ' || v_wann || ' · ' || v_wer, 'b' || new.id, new.erstellt_von);
+    elsif new.status = 'blockiert' and new.eigennutzung_partner is not null then
+      perform push_an_team('buchung', 'Eigennutzung eingetragen', v_studio || ' · ' || v_wann || coalesce(' · ' || (select name from profiles where id = new.erstellt_von), ''), 'b' || new.id, new.erstellt_von);
+      perform push_an_partner(new.eigennutzung_partner, 'p_buchung', 'Eigennutzung eingetragen', v_studio || ' · ' || v_wann || coalesce(' · ' || (select name from profiles where id = new.erstellt_von), ''), 'b' || new.id, new.erstellt_von);
     elsif new.status = 'gebucht' then
       perform push_an_team('buchung', 'Neue Buchung', v_studio || ' · ' || v_wann || ' · ' || v_wer, 'b' || new.id, new.erstellt_von);
       if new.eigennutzung_partner is null then
