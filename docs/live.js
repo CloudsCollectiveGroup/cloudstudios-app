@@ -510,5 +510,7 @@
     [...document.querySelectorAll('form input:not([type=checkbox]):not([type=hidden]), form textarea')].some((i) => i.value && i.defaultValue !== i.value);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ICH && !amTippen()) laden().catch(() => {}); });
   setInterval(() => { if (!document.hidden && ICH && !amTippen()) laden().catch(() => {}); }, 60000);
+  // Zugangslink in einem schon offenen Tab: Safari wechselt dann nur den #-Teil und lädt nicht neu
+  window.addEventListener('hashchange', () => { if (/zugang=/.test(location.hash)) location.reload(); });
   start();
 })();
