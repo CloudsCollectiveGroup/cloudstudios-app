@@ -95,7 +95,7 @@ label{font-size:12px;color:var(--leise);display:flex;flex-direction:column;gap:4
 .vollbild .toast{position:fixed;left:50%;transform:translateX(-50%);width:min(456px,calc(100vw - 24px));top:12px}
 
 body.live #dev,body.live #test{display:none!important}
-#live-leiste{position:absolute;right:12px;top:calc(env(safe-area-inset-top) + 14px);z-index:30}
+#live-leiste{display:flex;justify-content:center;margin-top:-90px;padding-bottom:calc(110px + env(safe-area-inset-bottom))}
 .vollbild .handy{padding-top:calc(18px + env(safe-area-inset-top))}
 .vollbild .toast{top:calc(12px + env(safe-area-inset-top))}
 
@@ -109,7 +109,7 @@ body.live #dev,body.live #test{display:none!important}
   .handy .liste:has(> .karte):not(form):not(:has(form,input,select,textarea)){display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
   .handy .raster:not(:has(input,select,textarea))[style*="repeat(2"]{grid-template-columns:repeat(4,minmax(0,1fr))!important}
   .handy h2{font-size:34px}
-  #live-leiste{position:fixed;right:24px;top:calc(20px + env(safe-area-inset-top))}
+  #live-leiste{position:fixed;right:24px;top:calc(20px + env(safe-area-inset-top));margin:0;padding:0;z-index:30}
 }
 @media (min-width: 1280px) {
   .vollbild .handy{padding-left:180px}
@@ -125,7 +125,7 @@ body.live #dev,body.live #test{display:none!important}
 <main class="inhalt" id="app"></main>
 <div id="dev"></div><div id="test"></div>
 
-<script src="config.js?v=202611251453"></script>
+<script src="config.js?v=202611251546"></script>
 <script>
 {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -389,8 +389,8 @@ function toast(text) { S.toast = text; render(); setTimeout(() => { if (S.toast 
 function anzeige(b, sicht, partner) {
   let titel, f = farbe(b);
   if (sicht === 'intern') titel = b.kunde ? `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}` : b.gast ? `${b.gast}${b.kn ? ' · ' + b.kn : ''}` : (b.grund || 'Blockiert');
-  else if (sicht === 'kunde') { if (b.kunde === S.kunde) titel = 'Ihre Buchung'; else { titel = 'Belegt'; f = 'belegt'; } }
-  else titel = b.partner === partner ? (b.grund || 'Eigennutzung') : b.status === 'geschlossen' ? 'Veranstaltung' : (b.status === 'blockiert' ? 'Blockiert' : 'CloudStudios-Buchung');
+  else if (sicht === 'kunde') { if (b.kunde === S.kunde) titel = 'Ihre Buchung'; else if (b.status === 'angefragt') { titel = 'Angefragt'; f = 'gruen'; } else { titel = 'Belegt'; f = 'belegt'; } }
+  else titel = b.partner === partner ? (b.grund || 'Eigennutzung') : b.status === 'geschlossen' ? 'Veranstaltung' : b.status === 'angefragt' ? 'Angefragt' : (b.status === 'blockiert' ? 'Blockiert' : 'CloudStudios-Buchung');
   return { titel, f };
 }
 function planHTML(tag, { studios, sicht, partner }) {
@@ -400,8 +400,8 @@ function planHTML(tag, { studios, sicht, partner }) {
     const bloecke = S.buchungen.filter((b) => aktiv(b) && b.studio === sid && b.tag === tag && !(b.status === 'angefragt' && b.reserviertBis < JETZT)).map((b) => {
       let titel, f = farbe(b);
       if (sicht === 'intern') titel = b.kunde ? `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}` : b.gast ? `${b.gast}${b.kn ? ' · ' + b.kn : ''}` : (b.grund || 'Blockiert');
-      else if (sicht === 'kunde') { if (b.kunde === S.kunde) titel = 'Ihre Buchung'; else { titel = 'Belegt'; f = 'belegt'; } }
-      else titel = b.partner === partner ? (b.grund || 'Eigennutzung') : b.status === 'geschlossen' ? 'Veranstaltung' : (b.status === 'blockiert' ? 'Blockiert' : 'CloudStudios-Buchung');
+      else if (sicht === 'kunde') { if (b.kunde === S.kunde) titel = 'Ihre Buchung'; else if (b.status === 'angefragt') { titel = 'Angefragt'; f = 'gruen'; } else { titel = 'Belegt'; f = 'belegt'; } }
+      else titel = b.partner === partner ? (b.grund || 'Eigennutzung') : b.status === 'geschlossen' ? 'Veranstaltung' : b.status === 'angefragt' ? 'Angefragt' : (b.status === 'blockiert' ? 'Blockiert' : 'CloudStudios-Buchung');
       const zusatz = sicht === 'intern' && b.extras?.length ? ' · ' + b.extras.map((e) => e === 'u87' ? 'U87' : 'TLM 103').join(', ') : '';
       return `<div class="block f-${f}" ${sicht === 'intern' ? `data-detail="${b.id}" role="button" tabindex="0" style="cursor:pointer;` : 'style="'}left:${p(Math.max(8, b.von))};width:calc(${((b.bis - Math.max(8, b.von)) / 16 * 100).toFixed(2)}% - 3px)" title="${esc(titel)}"><b>${esc(titel)}</b>${b.von}–${b.bis}${esc(zusatz)}</div>`;
     }).join('');
@@ -1412,6 +1412,6 @@ if (window.CS_CONFIG) { window.CS_LIVE = true; } else { seed(); ausHash(); }
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
-<script src="live.js?v=202611251453"></script>
+<script src="live.js?v=202611251546"></script>
 </body>
 </html>

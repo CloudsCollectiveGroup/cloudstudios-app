@@ -91,7 +91,7 @@
         erstattet: !!b.erstattet, grund: b.grund || null, partner: b.partner || null, gruppe: b.gruppe || null, gast: b.gast || null, kn: b.kn || null,
         preis: b.preis != null ? +b.preis : null, angebot: b.angebot || null, rechnung: b.rechnung || null, noShow: !!b.noshow,
         reserviertBis: b.reserviert_bis ? absVon(b.reserviert_bis) : null, stornoAm: b.storniert_am ? uhr(b.storniert_am) : null, stornoVon: b.storniert_von || null };
-      if (!team && !b.eigen) { x.kunde = null; x.gast = null; }
+      if (!team && !b.eigen) { x.kunde = null; x.gast = null; if (x.status === 'angefragt') x.reserviertBis = 9e9; }
       if (team && !x.kunde && !x.gast && x.status === 'gebucht') x.gast = 'Buchung';
       if (x.credits === 0 && x.gast) x.walkin = true;
       platzhalter(x.kunde);
