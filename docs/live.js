@@ -83,8 +83,8 @@
 
     // Buchungen
     S.buchungen = d.buchungen.map((b) => {
-      const beginn = new Date(b.beginn), tag = tagVon(beginn), von = stdVon(beginn), dauer = (new Date(b.ende) - beginn) / 36e5;
-      const x = { id: b.id, studio: b.studio, tag, von, bis: von + dauer, status: b.status, kunde: b.kunde || null, credits: +b.credits || 0, extras: [],
+      const beginn = new Date(b.beginn), tag = tagVon(beginn), von = Math.round(stdVon(beginn) * 2) / 2, dauer = Math.round((new Date(b.ende) - beginn) / 18e5) / 2;
+      const x = { id: b.id, studio: b.studio, tag, von, bis: Math.min(24, von + dauer), status: b.status, kunde: b.kunde || null, credits: +b.credits || 0, extras: [],
         erstattet: !!b.erstattet, grund: b.grund || null, partner: b.partner || null, gruppe: b.gruppe || null, gast: b.gast || null, kn: b.kn || null,
         preis: b.preis != null ? +b.preis : null, angebot: b.angebot || null, rechnung: b.rechnung || null, noShow: !!b.noshow,
         reserviertBis: b.reserviert_bis ? absVon(b.reserviert_bis) : null, stornoAm: b.storniert_am ? uhr(b.storniert_am) : null, stornoVon: b.storniert_von || null };
