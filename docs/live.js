@@ -11,6 +11,7 @@
   const TZ = 'Europe/Berlin';
   let D = null, ICH = null, ABR = {};
   const linkTyp = /type=(invite|recovery)/.exec(location.hash || '')?.[1] || null;
+  const linkFehler = /error_code=([^&]+)/.exec(location.hash || '')?.[1] || (/error=([^&]+)/.exec(location.hash || '')?.[1]) || null;
 
   // ---------- Zeit ----------
   const teile = (d) => Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).map((p) => [p.type, p.value]));
@@ -230,6 +231,21 @@
   document.addEventListener('click', async (e) => {
     const t = e.target.closest('button'); if (!t) return;
     const d = t.dataset;
+    if ('liveKopieren' in d) {
+      e.stopImmediatePropagation();
+      try { await navigator.clipboard.writeText(d.liveKopieren); C.toast('Link kopiert. Jetzt in WhatsApp einfügen.'); }
+      catch (_) { window.prompt('Link kopieren:', d.liveKopieren); }
+      return;
+    }
+    if ('liveNeulink' in d) {
+      e.stopImmediatePropagation();
+      const k = S.kunden[d.liveNeulink];
+      if (!k?.mail) return C.toast('Für dieses Konto ist keine E-Mail hinterlegt.');
+      const { data, error } = await sb.functions.invoke('einladen', { body: { neuer_link: true, mail: k.mail, redirect: location.origin + location.pathname } });
+      if (error || !data?.link) { let t = error?.message || 'Fehler'; try { t = (await error.context.json()).fehler || t; } catch (_) {} return C.toast('Kein Link: ' + t); }
+      S.akte = null; S.iTab = 'mehr'; S.mTab = 'konten'; S.einladung = { name: k.name, mail: k.mail, tel: k.tel, link: data.link, ansicht: 'Kunden-App' }; S.kontoMeldung = null;
+      C.render(); window.scrollTo(0, document.body.scrollHeight); return;
+    }
     if ('liveAus' in d) { e.stopImmediatePropagation(); await sb.auth.signOut(); location.hash = ''; location.reload(); return; }
     if (!ICH) return;
     const keys = Object.keys(d);
@@ -451,7 +467,7 @@
       if (kunde && g('s5')) await rpc('freigabe_setzen', { p_kunde: id, p_an: true, p_studio: 's5' });
       if (kunde && g('notiz')) await rpc('kunde_notiz', { p_kunde: id, p_notiz: String(g('notiz')) });
     } catch (err) { info += ' · Achtung: ' + fehlerText(err); }
-    S.einladung = { name, mail, link: data.link, ansicht: kunde ? 'Kunden-App' : a === 'partner' ? 'Partner-Ansicht' : 'Team-Ansicht' };
+    S.einladung = { name, mail, tel, link: data.link, ansicht: kunde ? 'Kunden-App' : a === 'partner' ? 'Partner-Ansicht' : 'Team-Ansicht' };
     await laden();
     msg(`${kn ? kn + ' ' : ''}${name} angelegt${info ? ' · ' + info : ''}. Link unten per WhatsApp schicken.`, true);
   }
@@ -470,6 +486,7 @@
   // ---------- Start ----------
   async function start() {
     const { data: { session } } = await sb.auth.getSession();
+    if (linkFehler && !session) { history.replaceState(null, '', location.pathname); ICH = null; leiste(); return anmeldeSeite('Dieser Link ist abgelaufen oder wurde schon benutzt. Bitte beim CloudStudios-Team einen neuen Link anfordern.'); }
     if (!session) { ICH = null; leiste(); return anmeldeSeite(); }
     if (linkTyp && !start._pwGesetzt) { start._pwGesetzt = true; ICH = null; return passwortSeite(); }
     try { await laden(); }
