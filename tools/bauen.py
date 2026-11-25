@@ -18,8 +18,10 @@ ersetze('<label>Stunden<input name="std" type="number" min="1" max="16" value="4
 # Start: im Live-Betrieb keine Beispieldaten
 ersetze('seed(); ausHash();',
         'window.CS = { S, render, toast, meldung, alertKarte, ST, STUDIOS, TAGE, HEUTE, TARIFE, PTYPEN, ROLLEN, PARTNER, RECHTE, EVENTS, ARTIKEL, datum, abs, fmt, eur, esc, guthaben, belegt, eventPreis };\nif (window.CS_CONFIG) { window.CS_LIVE = true; } else { seed(); ausHash(); }')
-ersetze('</body>', '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>\n<script src="live.js"></script>\n</body>')
-ersetze('<script>\n{', '<script src="config.js"></script>\n<script>\n{')
+import time
+V = time.strftime('%Y%m%d%H%M')
+ersetze('</body>', '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>\n<script src="live.js?v=' + V + '"></script>\n</body>')
+ersetze('<script>\n{', '<script src="config.js?v=' + V + '"></script>\n<script>\n{')
 ersetze('function abrechnung(partner) {\n  const zeilen = [];', 'function abrechnung(partner) {\n  if (window.CS_ABR) return window.CS_ABR(partner);\n  const zeilen = [];')
 ersetze('${esc(PARTNER[a2.partner].name.toUpperCase())}', '${esc((PARTNER[a2.partner]?.name || \'Team\').toUpperCase())}')
 ersetze("function naechsteKN() { return 'KN-' + (Math.max(...Object.values(S.kunden).map((v) => +v.kn.slice(3))) + 1); }",
