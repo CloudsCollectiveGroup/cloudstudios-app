@@ -9,6 +9,9 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+// Eigener App-Link statt des Supabase-Links: Link-Vorschauen (WhatsApp, iMessage) öffnen sonst den Einmal-Link
+// und verbrauchen ihn. Der Code steht hinter dem #, wird nie an einen Server geschickt und erst beim Speichern eingelöst.
+const appLink = (basis: string, token: string, typ: string) => `${basis || ''}#zugang=${encodeURIComponent(token)}&typ=${typ}`;
 const antwort = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
@@ -43,7 +46,7 @@ Deno.serve(async (req) => {
       const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email: mail, options: { redirectTo: b.redirect || undefined } });
       if (error) return antwort({ fehler: error.message }, 400);
       await admin.from('protokoll').insert({ von: wer.user.id, aktion: 'neuer_link', details: { konto: data.user.id } });
-      return antwort({ id: data.user.id, link: data.properties.action_link });
+      return antwort({ id: data.user.id, link: appLink(b.redirect, data.properties.hashed_token, 'recovery') });
     }
 
     const name = String(b.name ?? '').trim();
@@ -68,7 +71,7 @@ Deno.serve(async (req) => {
       return antwort({ fehler: /kn/.test(e2.message) ? 'Diese Kundennummer ist schon vergeben.' : e2.message }, 400);
     }
     await admin.from('protokoll').insert({ von: wer.user.id, aktion: 'konto_anlegen', details: { konto: id, rolle, kn: b.kn ?? null } });
-    return antwort({ id, link: data.properties.action_link });
+    return antwort({ id, link: appLink(b.redirect, data.properties.hashed_token, 'invite') });
   } catch (e) {
     return antwort({ fehler: String((e as Error)?.message ?? e) }, 500);
   }

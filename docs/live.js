@@ -10,7 +10,9 @@
   document.body.classList.add('live');
   const TZ = 'Europe/Berlin';
   let D = null, ICH = null, ABR = {};
-  const linkTyp = /type=(invite|recovery)/.exec(location.hash || '')?.[1] || null;
+  const H = new URLSearchParams((location.hash || '').slice(1));
+  const zugang = H.get('zugang') ? { token: H.get('zugang'), typ: H.get('typ') === 'recovery' ? 'recovery' : 'invite' } : null;
+  const linkTyp = zugang?.typ || /type=(invite|recovery)/.exec(location.hash || '')?.[1] || null;
   const linkFehler = /error_code=([^&]+)/.exec(location.hash || '')?.[1] || (/error=([^&]+)/.exec(location.hash || '')?.[1]) || null;
 
   // ---------- Zeit ----------
@@ -372,8 +374,14 @@
       e.preventDefault(); e.stopImmediatePropagation();
       const g = new FormData(f), msg = document.getElementById('live-msg');
       if (g.get('pw') !== g.get('pw2')) { msg.textContent = 'Die Passwörter sind nicht gleich.'; return; }
+      msg.style.color = '#A3A3A8'; msg.textContent = 'Einen Moment …';
+      if (zugang) {
+        await sb.auth.signOut().catch(() => {});
+        const { error: ev } = await sb.auth.verifyOtp({ token_hash: zugang.token, type: zugang.typ });
+        if (ev) { msg.style.color = '#FF8A8D'; msg.textContent = 'Dieser Link ist abgelaufen oder wurde schon benutzt. Bitte beim CloudStudios-Team einen neuen Link anfordern.'; return; }
+      }
       const { error } = await sb.auth.updateUser({ password: String(g.get('pw')) });
-      if (error) { msg.textContent = error.message; return; }
+      if (error) { msg.style.color = '#FF8A8D'; msg.textContent = /different|same/i.test(error.message) ? 'Bitte ein anderes Passwort wählen.' : /weak|short|least/i.test(error.message) ? 'Das Passwort ist zu schwach.' : error.message; return; }
       history.replaceState(null, '', location.pathname); await start(); return;
     }
     if (!ICH) return;
@@ -486,6 +494,7 @@
   // ---------- Start ----------
   async function start() {
     const { data: { session } } = await sb.auth.getSession();
+    if (zugang && !start._pwGesetzt) { start._pwGesetzt = true; ICH = null; leiste(); return passwortSeite(); }
     if (linkFehler && !session) { history.replaceState(null, '', location.pathname); ICH = null; leiste(); return anmeldeSeite('Dieser Link ist abgelaufen oder wurde schon benutzt. Bitte beim CloudStudios-Team einen neuen Link anfordern.'); }
     if (!session) { ICH = null; leiste(); return anmeldeSeite(); }
     if (linkTyp && !start._pwGesetzt) { start._pwGesetzt = true; ICH = null; return passwortSeite(); }
