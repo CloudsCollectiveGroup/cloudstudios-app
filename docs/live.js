@@ -104,7 +104,7 @@
       platzhalter(a.kunde);
       const x = { id: a.id, art: a.art || 'problem', kunde: a.kunde, text: a.text, status: ['offen', 'in_klaerung'].includes(a.status) ? 'offen' : 'erledigt' };
       const dt = a.daten || {};
-      if (x.art === 'paket') x.menge = +dt.menge || 0;
+      if (x.art === 'paket' || x.art === 'label') x.menge = +dt.menge || 0;
       if (x.art === 'event' && dt.datum) Object.assign(x, { tag: tagAusDatum(dt.datum), start: +dt.start, ende: +dt.ende, camp: +dt.camp || 0, eventArt: dt.eventArt || 'release' });
       if (x.art === 'bestellung') x.posten = dt.posten || [];
       S.anfragen.push(x);
@@ -172,7 +172,13 @@
       const rows = await rpc('partner_abrechnung', { p_monat: monatsErster() });
       for (const r of rows || []) (ABR[r.partner] = ABR[r.partner] || []).push({ t: `${r.posten} (${C.fmt(+r.menge)})`, b: +r.betrag });
     } catch (_) { /* ohne Abrechnung weiter */ }
+    LABEL = [];
+    if (ICH.rolle === 'admin') {
+      try { LABEL = (await rpc('label_verbrauch', { p_monat: monatsErster() }) || []).map((r) => ({ name: r.name, kn: r.kn, tarif: r.tarif, credits: +r.credits, netto: +r.betrag_netto })); } catch (_) { LABEL = []; }
+    }
   }
+  let LABEL = [];
+  window.CS_LABEL = () => LABEL;
   window.CS_ABR = (partner) => (ABR[partner] && ABR[partner].length ? ABR[partner] : [{ t: 'Noch keine Umsätze in diesem Monat', b: 0 }]);
 
   let ladeLauf = null;
@@ -375,6 +381,11 @@
     t.disabled = true;
     try {
       if (d.zahlung) { const rn = frage('Rechnungsnummer (RN-CS-…), leer lassen wenn noch keine:'); if (rn === null) return; await nach(() => rpc('zahlung_bestaetigen', { p_buchung: +d.zahlung, p_rechnung: rn || null }), 'Zahlung bestätigt.'); return; }
+      if (d.labelok) {
+        const a = anfrage(d.labelok);
+        await nach(async () => { await rpc('credits_aufladen', { p_kunde: a.kunde, p_art: 'label', p_credits: a.menge, p_notiz: 'Nachbuchung Label-Credits' }); await rpc('anfrage_status', { p_id: a.id, p_status: 'erledigt' }); }, `${a.menge} Label-Credits freigegeben.`); return;
+      }
+      if (d.labelnach) { await nach(() => rpc('anfrage_neu', { p_art: 'label', p_text: `${d.labelnach} Label-Credits nachbuchen`, p_daten: { menge: +d.labelnach } }), 'Anfrage gesendet. Cem gibt die Credits frei.'); return; }
       if (d.aufladen) {
         const a = anfrage(d.aufladen), rn = frage(`Rechnungsnummer für Paket ${a.menge}:`, 'RN-CS-'); if (!rn || rn === 'RN-CS-') return;
         await nach(async () => { await rpc('credits_aufladen', { p_kunde: a.kunde, p_art: 'paket', p_credits: a.menge, p_rechnung: rn }); await rpc('anfrage_status', { p_id: a.id, p_status: 'erledigt' }); }, `${a.menge} Credits aufgeladen.`); return;
@@ -586,7 +597,7 @@
         await rpc('mitgliedschaft_anlegen', { p_kunde: id, p_tarif: tid, p_ab: ab, p_vn: String(g('vn') || '').trim() || null });
         if (ab === isoTag(0)) await rpc('mitglieder_monatslauf', {});
         info = `${tid} ab ${deDatum(ab)}`;
-      } else if (a === 'label') { await rpc('credits_aufladen', { p_kunde: id, p_art: 'label', p_credits: 20, p_notiz: 'Clouds Records · ' + (g('lrolle') || 'Artist') }); info = '20 Label-Credits'; }
+      } else if (a === 'label') { const prod = (g('lrolle') || 'Artist') === 'Producer'; await rpc('mitgliedschaft_anlegen', { p_kunde: id, p_tarif: prod ? 'Label 60' : 'Label 30', p_ab: isoTag(0) }); try { await rpc('mitglieder_monatslauf', {}); } catch (_) {} info = (prod ? 60 : 30) + ' Label-Credits je Monat'; }
       if (kunde && g('s5')) await rpc('freigabe_setzen', { p_kunde: id, p_an: true, p_studio: 's5' });
       if (kunde && g('notiz')) await rpc('kunde_notiz', { p_kunde: id, p_notiz: String(g('notiz')) });
     } catch (err) { info += ' · Achtung: ' + fehlerText(err); }

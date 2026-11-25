@@ -14,7 +14,7 @@ def sh(cmd):
 
 def frische_db():
     sh(f'psql -h /tmp -p 5433 -U postgres -q -c "drop database if exists {DB}" -c "create database {DB}"')
-    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql", "supabase/04_push.sql"):
+    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql", "supabase/04_push.sql", "supabase/05_label.sql"):
         sh(f"psql -h /tmp -p 5433 -U postgres -q -v ON_ERROR_STOP=1 -d {DB} -f {ROOT}/{f}")
 
 frische_db()
@@ -387,6 +387,24 @@ check("Mitteilung vom Partner: Team bekommt Push", any(r[0] == "mitteilung" for 
 su("select push_zeitplan()")
 n1 = len(q_push(cem)); su("select push_zeitplan()")
 check("Zeitplan erzeugt keine Doppelten", len(q_push(cem)) == n1)
+
+print("21. Label-Credits (Artist 30, Producer 60, 5 € netto je eingelöstem Credit)")
+art = benutzer("Artie", kn="KN-120"); AR = Als(art)
+C.q("select mitgliedschaft_anlegen(%s, 'Label 30', current_date)", art)
+C.q("select mitglieder_monatslauf()")
+check("Artist bekommt 30 Label-Credits", stand(AR) == 30, stand(AR))
+check("Label-Posten ist Art label, nur Studio 1", su("select art, nur_studios from credit_posten where kunde=%s", art)[0] == ("label", ["s1"]))
+check("Label-Credits nicht in Studio 3", AR.fehler("select credits_buchen('s3', %s, 2)", t(3, 10)) is not None)
+bl = AR.q("select credits_buchen('s1', %s, 3)", t(1, 15))[0][0]
+AR.q("select credits_buchen('s1', %s, 2)", t(2, 15))
+AR.q("select stornieren(%s)", AR.q("select credits_buchen('s1', %s, 2)", t(3, 2))[0][0])
+v = {r[0]: r for r in C.q("select kunde, credits, betrag_netto from label_verbrauch(current_date)")}
+check("Nur eingelöste Credits zählen (frühes Storno nicht)", float(v[art][1]) == 5, v.get(art))
+check("Betrag = Credits × 5 € netto", float(v[art][2]) == float(v[art][1]) * 5)
+check("Kunde sieht Label-Verbrauch nicht", AR.fehler("select * from label_verbrauch(current_date)") == "KEIN_ZUGRIFF")
+AR.q("select anfrage_neu('label','10 Label-Credits nachbuchen','{\"menge\":10}')")
+C.q("select credits_aufladen(p_kunde => %s, p_art => 'label', p_credits => 10, p_notiz => 'Nachbuchung')", art)
+check("Nachbuchung zu gleichen Bedingungen (nur Studio 1, bis Monatsende)", su("select count(*) from credit_posten where kunde=%s and art='label' and nur_studios='{s1}' and gueltig_bis=(date_trunc('month', current_date) + interval '1 month - 1 day')::date", art)[0][0] == 2)
 
 print(f"\n{ok} bestanden, {len(fails)} fehlgeschlagen")
 if fails: print("Fehlgeschlagen:", *fails, sep="\n  - "); sys.exit(1)

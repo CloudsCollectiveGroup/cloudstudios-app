@@ -525,7 +525,9 @@ begin
   for r in select m.* from mitgliedschaften m
             where m.aktiv_ab <= monatsende(v_monat) and (m.aktiv_bis is null or m.aktiv_bis >= v_monat) loop
     insert into credit_posten(kunde, art, credits, gueltig_ab, gueltig_bis, nur_studios, mitgliedschaft, monat, notiz)
-    values (r.kunde, case when r.basement_pauschale then 'basement' else 'mitglied' end, r.credits_monat,
+    values (r.kunde, case when r.basement_pauschale then 'basement'
+                          when exists (select 1 from tarife t where t.id = r.tarif_id and t.art = 'label') then 'label'
+                          else 'mitglied' end, r.credits_monat,
             greatest(v_monat, r.aktiv_ab), monatsende(v_monat), r.nur_studios, r.id, v_monat, r.tarif)
     on conflict (mitgliedschaft, monat) do nothing
     returning id into v_id;
@@ -712,7 +714,8 @@ insert into tarife (id,name,art,credits_monat,beitrag_brutto,nur_studios,partner
   ('PA 204','Multi-Studio XL','mitglied',50,535.50,null,null,false),
   ('PA 210','Family & Friends','mitglied',24,178.50,array['s1'],null,true),
   ('PA 220','CloudsMember','mitglied',60,654.50,null,30,true),
-  ('Label 20','Clouds Records','label',20,0,array['s1'],null,false)
+  ('Label 30','Clouds Records · Artist','label',30,0,array['s1'],null,false),
+  ('Label 60','Clouds Records · Producer','label',60,0,array['s1'],null,false)
 on conflict (id) do nothing;
 -- PA 230 Basement-Pauschale entfällt seit 25.11.2026 (Basement verwaltet eigene Pauschalen selbst).
 update tarife set aktiv = false where id = 'PA 230';

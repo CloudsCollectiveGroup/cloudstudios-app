@@ -161,7 +161,8 @@ language plpgsql security definer set search_path = public as $$
 declare v_id bigint;
 begin
   if meine_rolle() is null then raise exception 'NICHT_ANGEMELDET'; end if;
-  if p_art not in ('paket','event','bestellung','problem','s5') then raise exception 'UNGUELTIGE_ART'; end if;
+  if p_art not in ('paket','event','bestellung','problem','s5','label') then raise exception 'UNGUELTIGE_ART'; end if;
+  if p_art = 'label' and not exists (select 1 from mitgliedschaften m join tarife t on t.id = m.tarif_id where m.kunde = auth.uid() and t.art = 'label' and (m.aktiv_bis is null or m.aktiv_bis >= current_date)) then raise exception 'KEIN_ZUGRIFF'; end if;
   if p_text is null or length(trim(p_text)) < 3 then raise exception 'TEXT_FEHLT'; end if;
   insert into anfragen(kunde, studio, wunsch, art, daten) values (auth.uid(), p_studio, p_text, p_art, p_daten) returning id into v_id;
   perform log_aktion('anfrage_neu', jsonb_build_object('anfrage', v_id, 'art', p_art));
