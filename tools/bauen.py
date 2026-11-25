@@ -27,4 +27,4 @@ ersetze("function naechsteKN() { return 'KN-' + (Math.max(...Object.values(S.kun
 ersetze('${kunde ? `<div class="zeile"><span class="hinweis">Kundennummer</span><b class="mono" style="color:var(--gelb)">${naechsteKN()}</b></div>` : \'\'}',
         '${kunde ? `<label>Kundennummer (bestehende KN übernehmen)<input name="kn" value="${naechsteKN()}" autocomplete="off" style="min-height:48px"></label>` : \'\'}')
 (ROOT / 'docs' / 'index.html').write_text(src)
-print('web/index.html gebaut,', len(src), 'Zeichen')
+print('docs/index.html gebaut,', len(src), 'Zeichen')
