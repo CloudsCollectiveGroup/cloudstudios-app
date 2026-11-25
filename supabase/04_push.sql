@@ -282,6 +282,21 @@ begin
   values (auth.uid(), 'test', 'CloudStudios', 'Push-Mitteilungen sind eingeschaltet. ⚡');
 end $$;
 
+-- Schlüsselpaar für den Versand: erzeugt die Versandfunktion selbst beim ersten Lauf.
+-- Der private Teil ist nur mit dem Service-Schlüssel lesbar; die App bekommt nur den öffentlichen.
+create table if not exists push_schluessel (
+  id          int primary key default 1 check (id = 1),
+  oeffentlich text not null,
+  privat      text not null,
+  erstellt_am timestamptz not null default now()
+);
+alter table push_schluessel enable row level security;
+revoke all on push_schluessel from anon, authenticated;
+grant all on push_schluessel to service_role;
+create or replace function push_oeffentlich() returns text
+language sql stable security definer set search_path = public as $$ select oeffentlich from push_schluessel where id = 1 $$;
+grant execute on function push_oeffentlich to authenticated;
+
 -- Für die Versandfunktion: offene Einträge atomar übernehmen (kein Doppelversand)
 create or replace function push_holen(p_max int default 200)
 returns table(id bigint, nutzer uuid, art text, titel text, text text, url text)

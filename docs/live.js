@@ -287,7 +287,8 @@
         const erlaubt = await Notification.requestPermission();
         if (erlaubt !== 'granted') { PUSH.meldung = 'Ohne Erlaubnis keine Mitteilungen.'; pushZeigen(); return; }
         const reg = await swReg(); await navigator.serviceWorker.ready;
-        const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(cfg.push) });
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) { const schluessel = await rpc('push_oeffentlich'); if (!schluessel) { PUSH.meldung = 'Push wird gerade eingerichtet. Bitte in ein paar Minuten nochmal.'; pushZeigen(); return; } sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(schluessel) }); }
         const j = sub.toJSON();
         await rpc('push_abo_speichern', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_geraet: geraetName() });
         PUSH.meldung = 'Eingeschaltet.'; await pushLaden();
