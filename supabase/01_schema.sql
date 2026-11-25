@@ -387,7 +387,7 @@ begin
                           reserviert_bis, erstellt_von, notiz)
     values (p_studio, tstzrange(p_start, p_start + make_interval(mins => (p_stunden*60)::int), '[)'),
             'angefragt', p_kunde, p_gast_name, p_kn, p_preis_brutto, p_angebot,
-            least(greatest(p_start - interval '24 hours', now() + interval '1 hour'), p_start), auth.uid(), p_notiz)
+            greatest(p_start - interval '24 hours', least(now() + interval '24 hours', p_start)), auth.uid(), p_notiz)
     returning id into v_id;
   exception when exclusion_violation then raise exception 'SLOT_BELEGT';
   end;

@@ -34,6 +34,7 @@ Buchungs-App für CloudStudios mit Credit-Konten. Aufbau wie die Clouds-Records-
 ## Regeln (in der Datenbank, nicht umgehbar)
 - Credits je Stunde: Studio 1 und 3 = 1, Studio 4 = 2, Studio 5 = 4,5
 - Mindestens 2 Stunden; Buchung nur mit Deckung, sonst Vorschlag der möglichen Stunden
+- Walk-In-Anfrage hält den Slot bis 24 Std. vor Beginn, bei kurzfristigen Buchungen bis zum Beginn
 - Credits gehen bei Buchung ab; Storno mehr als 24 Std. vorher → zurück; Mitglieder: 12 Std., später halbe Credits
 - Studio 5: Bewerbung des Kunden, Entscheidung durch BlackClouds; dauerhaft Freigegebene buchen selbst
 - PA 220: höchstens 30 Credits pro Monat in Partnerstudios (in der Tabelle `tarife` änderbar)
