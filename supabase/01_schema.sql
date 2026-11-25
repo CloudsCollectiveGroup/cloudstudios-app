@@ -638,13 +638,9 @@ begin
     from buchungen b
    where b.studio = 's3' and b.status = 'gebucht' and b.credits = 0 and b.preis_brutto is not null
      and berlin_datum(lower(b.zeitraum)) between v_von and v_bis
-  having (v_partner is null or v_partner = 'basement')
-  union all
-  -- Basement-Pauschalen: 50 % vom Netto-Beitrag
-  select 'basement', 'Basement-Pauschalen (50 % netto)', count(*)::numeric, round(coalesce(sum(m.beitrag_brutto),0) / 1.19 / 2, 2)
-    from mitgliedschaften m
-   where m.basement_pauschale and m.aktiv_ab <= v_bis and (m.aktiv_bis is null or m.aktiv_bis >= v_von)
   having (v_partner is null or v_partner = 'basement');
+  -- Basement-Pauschalen laufen seit 25.11.2026 nicht mehr über CloudStudios:
+  -- Basement verwaltet sie selbst und blockiert die Zeiten als Eigennutzung (kein Anteil).
 end $$;
 
 -- Studio-5-Anfrage durch Kunden
@@ -716,9 +712,10 @@ insert into tarife (id,name,art,credits_monat,beitrag_brutto,nur_studios,partner
   ('PA 204','Multi-Studio XL','mitglied',50,535.50,null,null,false),
   ('PA 210','Family & Friends','mitglied',24,178.50,array['s1'],null,true),
   ('PA 220','CloudsMember','mitglied',60,654.50,null,30,true),
-  ('PA 230','Basement-Pauschale','basement',40,300,array['s3'],null,false),
   ('Label 20','Clouds Records','label',20,0,array['s1'],null,false)
 on conflict (id) do nothing;
+-- PA 230 Basement-Pauschale entfällt seit 25.11.2026 (Basement verwaltet eigene Pauschalen selbst).
+update tarife set aktiv = false where id = 'PA 230';
 -- Beiträge brutto laut Preisliste 2027; Änderungen in der App unter Tarife.
 
 -- Einstellungen (Schlüssel → Wert), z. B. Kriterien der Studio-5-Prüfliste

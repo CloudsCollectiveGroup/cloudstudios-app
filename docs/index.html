@@ -125,7 +125,7 @@ body.live #dev,body.live #test{display:none!important}
 <main class="inhalt" id="app"></main>
 <div id="dev"></div><div id="test"></div>
 
-<script src="config.js?v=202611251546"></script>
+<script src="config.js?v=202611251824"></script>
 <script>
 {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -531,7 +531,7 @@ function einstellungenHTML() {
     <div class="liste" style="margin-top:6px;gap:6px">${PTYPEN.map((t) => `<div class="karte zeile" style="padding:10px 12px"><span><b>${esc(t.name)}</b><br><span class="hinweis">${t.cr} Std. · ${eur(t.brutto)} brutto · nur Studio 3 · 50/50 mit Basement</span></span></div>`).join('')}</div>
     <div class="mono" style="margin-top:14px">NEUE PAUSCHALE ANLEGEN</div>
     <form id="f-pauschale" class="karte liste" style="margin-top:6px;gap:10px">
-      <label>Art<select name="art"><option value="basement">Basement-Pauschale (nur Studio 3, 50/50)</option><option value="mitglied">Mitgliedstarif CloudStudios</option></select></label>
+      <label>Art<select name="art"><option value="mitglied">Mitgliedstarif CloudStudios</option></select></label>
       <label>Name<input name="name" placeholder="z. B. Basement 20" style="min-height:48px"></label>
       <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr))"><label>Credits/Std. pro Monat<input name="cr" type="number" min="1" inputmode="numeric" style="min-height:48px"></label><label>Preis brutto (€)<input name="brutto" type="number" min="1" step="0.01" inputmode="decimal" style="min-height:48px"></label></div>
       <div class="hinweis">Gültig in</div><div class="chips">${['s1', 's3', 's4', 's5'].map((x) => `<label style="flex-direction:row;align-items:center;gap:6px;font-size:14px;color:var(--ink)"><input type="checkbox" name="nur_${x}" ${x === 's3' ? 'checked' : ''}> ${ST[x].name}</label>`).join('')}</div>
@@ -544,7 +544,7 @@ function einstellungenHTML() {
 function kontoTyp(v) { return v.label ? 'Clouds Records · ' + v.label : v.mitglied ? (v.mitglied.startsWith('Basement') ? 'Basement-Pauschale' : 'Mitglied ' + v.mitglied) : 'Credit-Paket'; }
 function naechsteKN() { return 'KN - ' + String(Math.max(0, ...Object.values(S.kunden).map((v) => +((String(v.kn).match(/(\d+)/) || [0, 0])[1]))) + 1).padStart(3, '0'); }
 function kontenHTML() {
-  const a = S.kontoArt, ARTEN = [['paket', 'Credit-Paket'], ['mitglied', 'Mitglied'], ['basement', 'Basement-Pauschale'], ['label', 'Clouds Records'], ['partner', 'Partner-Zugang'], ['team', 'Team']];
+  const a = S.kontoArt, ARTEN = [['paket', 'Credit-Paket'], ['mitglied', 'Mitglied'], ['label', 'Clouds Records'], ['partner', 'Partner-Zugang'], ['team', 'Team']];
   const kunde = ['paket', 'mitglied', 'basement', 'label'].includes(a);
   const feld = (l, n, typ = 'text', ph = '', extra = '') => `<label>${l}<input name="${n}" type="${typ}" placeholder="${ph}" ${extra} style="min-height:48px"></label>`;
   let spezial = '';
@@ -973,7 +973,7 @@ function partner() {
     <div class="karte liste" style="margin-top:8px;gap:12px;padding:16px">${P.studios.map((sid) => { const a = auslastungWoche(sid, S.partner), w = (x) => (x / a.ges * 100).toFixed(1) + '%'; return `<div><div class="zeile"><span>${esc(ST[sid].name)}</span><b class="zahl" style="font-size:18px">${Math.round((a.cs + a.eigen) / a.ges * 100)} %</b></div>
       <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.08);margin-top:6px"><i style="width:${w(a.cs)};background:var(--blau)"></i><i style="width:${w(a.eigen)};background:var(--grau)"></i></div>
       <div class="hinweis" style="margin-top:4px">${fmt(a.cs)} Std. CloudStudios · ${fmt(a.eigen)} Std. eigene Nutzung · ${fmt(a.frei)} Std. frei (8–24 Uhr)</div></div>`; }).join('')}</div>
-    ${S.partner === 'basement' ? `<div class="mono" style="margin-top:20px">IHRE PAUSCHALKUNDEN</div>
+    ${S.partner === 'basement' && S.pauschalen.length ? `<div class="mono" style="margin-top:20px">IHRE PAUSCHALKUNDEN</div>
     <div class="liste" style="margin-top:8px;gap:8px">${S.pauschalen.map((pa) => { const k = S.kunden[pa.kunde], po = S.posten.find((x) => x.kunde === pa.kunde && x.basement && x.bisAbs >= JETZT), rest = po ? Math.max(0, postenRest(po)) : 0, genutzt = po ? po.credits - rest : 0, naechste = S.buchungen.filter((b) => b.kunde === pa.kunde && aktiv(b) && abs(b.tag, b.bis) > JETZT).sort((x, y) => abs(x.tag, x.von) - abs(y.tag, y.von))[0];
       return `<div class="karte" style="padding:14px 16px"><div class="zeile"><b>${esc(k.name)}</b><span class="mono" style="color:#E2D6FF">${esc(pa.name.toUpperCase())}</span></div>
       <div class="zeile" style="margin-top:8px"><span class="hinweis">${fmt(genutzt)} von ${po ? fmt(po.credits) : '–'} Std. genutzt</span><b>${fmt(rest)} übrig</b></div>
@@ -981,7 +981,7 @@ function partner() {
       <div class="hinweis" style="margin-top:6px">Nächster Termin: ${naechste ? `${TAGE[naechste.tag]}, ${naechste.von}–${naechste.bis} Uhr` : 'keiner geplant'} · gültig bis ${po ? esc(po.bis) : '–'}</div></div>`; }).join('')}</div>` : ''}
     <div class="mono" style="margin-top:20px">RÄUME IM HAUS</div>
     ${raumKarten()}
-    <div class="hinweis" style="margin-top:10px">CloudStudios-Kunden sehen Sie ohne Namen, nur Zeit und Studio.${S.partner === 'basement' ? ' Ihre eigenen Pauschalkunden sehen Sie mit Namen.' : ''}</div>`;
+    <div class="hinweis" style="margin-top:10px">CloudStudios-Kunden sehen Sie ohne Namen, nur Zeit und Studio.${S.partner === 'basement' ? ' Zeiten Ihrer eigenen Pauschalkunden tragen Sie als Eigennutzung ein.' : ''}</div>`;
   } else if (tab === 'kalender') {
     inhalt = kopf('Kalender', 'IHRE STUDIOS · STUDIO 1 · GEMEINSCHAFTSFLÄCHEN') + `<div class="karte" style="margin-top:12px;padding:12px">${kalenderHTML('pTag', { studios: [...P.studios, 's1', 'lounge'], sicht: 'partner', partner: S.partner })}</div>
     <div class="hinweis" style="margin-top:6px">Rot in der Lounge heißt: Veranstaltung, Küche und Chill-Area sind dann nicht nutzbar.</div>
@@ -1062,12 +1062,12 @@ function regeln() {
   <div class="raster" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:12px">
     <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Buchen</h3><ul><li>Studio 1 und 3: 1 Credit/Std., Studio 4: 2, Studio 5: 4,5</li><li>Mindestens 2 Std., Ende spätestens 24:00</li><li>Wechselzeit inklusive: räumen bis :45 der letzten Stunde</li><li>Nur mit Deckung; sonst Vorschlag „reicht für X Std.“</li><li>Credits gehen sofort ab, älteste zuerst</li><li>Studio 5 nur per Bewerbung und Freigabe durch BlackClouds, außer der Kunde steht auf der Freigabeliste</li><li>Doppelbuchung ausgeschlossen, auch bei Mikrofonen</li></ul></div>
     <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Storno und Zugang</h3><ul><li>Mehr als 24 Std. vorher: Credits zurück</li><li>Danach: Credits bleiben abgezogen, Partner wird bezahlt</li><li>Ab 24 Std. vorher: verbindlich, Zugangscode in der App</li></ul></div>
-    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Credit-Arten</h3><ul><li>Paket: 3 Monate ab Zahlungseingang</li><li>Bonus: nur Studio 1 und 3</li><li>Mitglied: am Monatsersten, Rest verfällt am Monatsende</li><li>Basement-Pauschale: nur Studio 3</li><li>Label: nur Studio 1, bis Monatsende</li><li>PA 210 Family &amp; Friends: nur Studio 1, keine Partnerstudios</li><li>PA 220 CloudsMember: höchstens 30 Credits pro Monat in Partnerstudios (einstellbar)</li></ul></div>
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Credit-Arten</h3><ul><li>Paket: 3 Monate ab Zahlungseingang</li><li>Bonus: nur Studio 1 und 3</li><li>Mitglied: am Monatsersten, Rest verfällt am Monatsende</li><li>Label: nur Studio 1, bis Monatsende</li><li>PA 210 Family &amp; Friends: nur Studio 1, keine Partnerstudios</li><li>PA 220 CloudsMember: höchstens 30 Credits pro Monat in Partnerstudios (einstellbar)</li></ul></div>
     <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Extras</h3><ul><li>TLM 102 in jedem Studio inklusive</li><li>TLM 103 (1×): 1 Credit, Mitglieder 0</li><li>U87 (1×): 2 Credits, Mitglieder 1</li></ul></div>
     <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Veranstaltungen</h3><ul><li>Sperren Lounge und Studio 1 gemeinsam (rot)</li><li>Nur eintragbar, wenn beide frei sind</li></ul></div>
-    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Partner</h3><ul><li>BlackClouds: 14 €/Std. Studio 4, 35 €/Std. Studio 5</li><li>Basement: 5 € je CloudStudios-Credit + 50 % netto der Basement-Pauschalen + 50 % netto Walk-In</li><li>Partner sehen nur ihre Studios, keine Kundennamen (Basement sieht die eigenen Pauschalkunden)</li><li>Zustandsmeldungen hängen an der letzten Buchung im Raum</li><li>Partner bestätigen die Gutschrift in der App</li></ul></div>
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Partner</h3><ul><li>BlackClouds: 14 €/Std. Studio 4, 35 €/Std. Studio 5</li><li>Basement: 5 € je CloudStudios-Credit + 50 % netto Walk-In; eigene Pauschalen von Basement laufen als Eigennutzung, ohne Anteil</li><li>Partner sehen nur ihre Studios, keine Kundennamen (Basement sieht die eigenen Pauschalkunden)</li><li>Zustandsmeldungen hängen an der letzten Buchung im Raum</li><li>Partner bestätigen die Gutschrift in der App</li></ul></div>
   </div>
-  <div class="karte" style="margin-top:14px"><h3 style="font-size:17px">Zum Ausprobieren</h3><ol class="pruef"><li>Kunde Anna: Studio 1 am Mi um 11 Uhr buchen. Kollision mit ihrer eigenen Buchung prüfen.</li><li>Kunde Ben (Basement-Pauschale): Studio 4 buchen. Es muss abgelehnt werden.</li><li>Kunde Tom: 8 Std. Studio 4 buchen. Vorschlag erscheint.</li><li>Intern: Walk-In bestätigen, dann Kunde-Ansicht prüfen (blau, ohne Namen „Belegt“).</li><li>Intern: Veranstaltung auf einen Tag legen, an dem Studio 1 belegt ist.</li><li>Kunde Olga: Termin heute Abend in Studio 4 stornieren (unter 24 Std.), dann Partner BlackClouds ansehen.</li><li>Kunde Anna: Paket anfragen, intern aufladen, Guthaben-Ring beobachten.</li></ol></div>`;
+  <div class="karte" style="margin-top:14px"><h3 style="font-size:17px">Zum Ausprobieren</h3><ol class="pruef"><li>Kunde Anna: Studio 1 am Mi um 11 Uhr buchen. Kollision mit ihrer eigenen Buchung prüfen.</li><li>Kunde Tom: 8 Std. Studio 4 buchen. Vorschlag erscheint.</li><li>Intern: Walk-In bestätigen, dann Kunde-Ansicht prüfen (blau, ohne Namen „Belegt“).</li><li>Intern: Veranstaltung auf einen Tag legen, an dem Studio 1 belegt ist.</li><li>Kunde Olga: Termin heute Abend in Studio 4 stornieren (unter 24 Std.), dann Partner BlackClouds ansehen.</li><li>Kunde Anna: Paket anfragen, intern aufladen, Guthaben-Ring beobachten.</li></ol></div>`;
 }
 
 function devHTML() {
@@ -1412,6 +1412,6 @@ if (window.CS_CONFIG) { window.CS_LIVE = true; } else { seed(); ausHash(); }
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
-<script src="live.js?v=202611251546"></script>
+<script src="live.js?v=202611251824"></script>
 </body>
 </html>

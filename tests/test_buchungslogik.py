@@ -205,7 +205,7 @@ print("    ", ab)
 check("Andrews sieht seine Abrechnung", PK.fehler("select * from partner_abrechnung(%s)", monat) is None)
 check("Andrews sieht keine Basement-Zeilen", all(r[0] == "blackclouds" for r in PK.q("select * from partner_abrechnung(%s)", monat)))
 check("Kunde sieht keine Abrechnung", A.fehler("select * from partner_abrechnung(%s)", monat) == "KEIN_ZUGRIFF")
-check("Basement-Pauschale: 50 % netto = 126,05 €", ab.get(("basement", "Basement-Pauschalen (50 % netto)")) == 126.05)
+check("Basement-Pauschalen bringen keinen Anteil mehr (seit 25.11.)", ("basement", "Basement-Pauschalen (50 % netto)") not in ab)
 
 print("13. Tarife, Partner-Obergrenze (PA 220)")
 # Zwei Tage im selben Monat finden (Monatswechsel umgehen)
@@ -306,7 +306,7 @@ check("Jede Aktion protokolliert", C.q("select count(*) from protokoll")[0][0] >
 konto_summe = {u: float(su("select coalesce(sum(credits),0) from bewegungen where kunde=%s", u)[0][0]) for u in (anna, ben, lea, mia, nina, olga, vic, kiro)}
 check("Für alle Kunden: Bewegungen = Kontostand", all(abs(konto_summe[u] - stand(C, u)) < 0.001 for u in konto_summe), str(konto_summe))
 
-print("18. Stand 25.11.: Mitglieder-Storno, Walk-In BlackClouds, Bonus, PA 230")
+print("18. Stand 25.11.: Mitglieder-Storno, Walk-In BlackClouds, Bonus, PA 230 entfällt")
 tz = dt.timezone(dt.timedelta(hours=1))
 vorher = stand(O)
 bm = O.q("select credits_buchen('s1', %s, 2)", t(0, 5))[0][0]
@@ -330,7 +330,7 @@ v = summe_b()
 check("Bonus-Credits in Studio 3 buchbar", BO.fehler("select credits_buchen('s3', %s, 2)", bd) is None)
 check("Bonus in Studio 3: keine Vergütung an Basement", abs(summe_b() - v) < 0.001, f"{v} → {summe_b()}")
 check("Bonus-Credits nicht in Studio 4", BO.fehler("select credits_buchen('s4', %s, 1)", t(22, 15)) is not None)
-check("Tarif PA 230 vorhanden (40 Credits, 300 €)", su("select credits_monat, beitrag_brutto from tarife where id='PA 230'")[0] == (40, 300) or [float(x) for x in su("select credits_monat, beitrag_brutto from tarife where id='PA 230'")[0]] == [40, 300])
+check("PA 230 nicht mehr aktiv (Basement verwaltet eigene Pauschalen)", su("select count(*) from tarife where id='PA 230' and aktiv")[0][0] == 0)
 check("Olga: Bewegungen = Kontostand nach Halb-Storno", abs(float(su("select coalesce(sum(credits),0) from bewegungen where kunde=%s", olga)[0][0]) - stand(C, olga)) < 0.001)
 check("PA 201 kostet 267,75 € brutto", float(su("select beitrag_brutto from tarife where id='PA 201'")[0][0]) == 267.75)
 
