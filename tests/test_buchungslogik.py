@@ -14,7 +14,7 @@ def sh(cmd):
 
 def frische_db():
     sh(f'psql -h /tmp -p 5433 -U postgres -q -c "drop database if exists {DB}" -c "create database {DB}"')
-    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql"):
+    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql"):
         sh(f"psql -h /tmp -p 5433 -U postgres -q -v ON_ERROR_STOP=1 -d {DB} -f {ROOT}/{f}")
 
 frische_db()
@@ -305,6 +305,59 @@ check("Team darf keine Rollen vergeben", T.fehler("select profil_setzen(%s, null
 check("Jede Aktion protokolliert", C.q("select count(*) from protokoll")[0][0] > 20)
 konto_summe = {u: float(su("select coalesce(sum(credits),0) from bewegungen where kunde=%s", u)[0][0]) for u in (anna, ben, lea, mia, nina, olga, vic, kiro)}
 check("Für alle Kunden: Bewegungen = Kontostand", all(abs(konto_summe[u] - stand(C, u)) < 0.001 for u in konto_summe), str(konto_summe))
+
+print("18. Stand 25.11.: Mitglieder-Storno, Walk-In BlackClouds, Bonus, PA 230")
+tz = dt.timezone(dt.timedelta(hours=1))
+vorher = stand(O)
+bm = O.q("select credits_buchen('s1', %s, 2)", t(0, 5))[0][0]
+cr = float(su("select credits from buchungen where id=%s", bm)[0][0])
+check("Mitglied: Storno unter 12 Std. = halbe Credits", O.q("select stornieren(%s)", bm)[0][0] == "HALB_ERSTATTET" and abs(stand(O) - (vorher - cr / 2)) < 0.001, f"{stand(O)} vs {vorher - cr/2}")
+bm2 = O.q("select credits_buchen('s1', %s, 2)", t(0, 14))[0][0]
+vorher = stand(O)
+check("Mitglied: Storno über 12 Std. = voll zurück", O.q("select stornieren(%s)", bm2)[0][0] == "ERSTATTET" and stand(O) > vorher)
+wd = t(21, 11); wm = wd.astimezone(tz).date().replace(day=1)
+vor = {x: float(b) for p_, x, m, b in C.q("select * from partner_abrechnung(%s)", wm) if p_ == "blackclouds"}
+wb = T.q("select anfrage_eintragen('s4', %s, 2, 'Walk-In Andrews', null, null, 80, 'AN-CS-501')", wd)[0][0]
+T.q("select zahlung_bestaetigen(%s, 'RN-CS-951')", wb)
+nach = {x: float(b) for p_, x, m, b in C.q("select * from partner_abrechnung(%s)", wm) if p_ == "blackclouds"}
+wk = [x for x in nach if x.endswith("Walk-In (70 % brutto)")]
+check("Walk-In Studio 4: Andrews bekommt 70 % von 80 € = 56 €", wk and round(nach[wk[0]] - vor.get(wk[0], 0), 2) == 56.0, str(nach))
+bon = benutzer("Bonni", kn="KN-118"); BO = Als(bon)
+C.q("select credits_aufladen(%s,'bonus',4)", bon)
+bd = t(22, 10); bmo = bd.astimezone(tz).date().replace(day=1)
+summe_b = lambda: sum(float(b) for p_, x, m, b in C.q("select * from partner_abrechnung(%s)", bmo) if p_ == "basement")
+v = summe_b()
+check("Bonus-Credits in Studio 3 buchbar", BO.fehler("select credits_buchen('s3', %s, 2)", bd) is None)
+check("Bonus in Studio 3: keine Vergütung an Basement", abs(summe_b() - v) < 0.001, f"{v} → {summe_b()}")
+check("Bonus-Credits nicht in Studio 4", BO.fehler("select credits_buchen('s4', %s, 1)", t(22, 15)) is not None)
+check("Tarif PA 230 vorhanden (40 Credits, 300 €)", su("select credits_monat, beitrag_brutto from tarife where id='PA 230'")[0] == (40, 300) or [float(x) for x in su("select credits_monat, beitrag_brutto from tarife where id='PA 230'")[0]] == [40, 300])
+check("Olga: Bewegungen = Kontostand nach Halb-Storno", abs(float(su("select coalesce(sum(credits),0) from bewegungen where kunde=%s", olga)[0][0]) - stand(C, olga)) < 0.001)
+check("PA 201 kostet 267,75 € brutto", float(su("select beitrag_brutto from tarife where id='PA 201'")[0][0]) == 267.75)
+
+print("19. App-Daten (eine Abfrage pro Ansicht)")
+import json as _j
+def ad(k): r = k.q("select app_daten()")[0][0]; return r if isinstance(r, dict) else _j.loads(r)
+da = ad(A); dc = ad(C); dp = ad(PB); dk = ad(PK)
+check("Kunde sieht nur sich als Kunde", [k["id"] for k in da["kunden"]] == [anna])
+check("Kunde sieht nur eigene Posten", all(p["kunde"] == anna for p in da["posten"]) and len(da["posten"]) > 0)
+fremd = [b for b in da["buchungen"] if not b["eigen"]]
+check("Fremde Buchungen ohne Kunde und Namen", all(b["kunde"] is None and b["grund"] in ("Belegt", "Veranstaltung") for b in fremd), str(fremd[:2]))
+check("Kunde bekommt kein Protokoll, keine Konten", "protokoll" not in da and "konten" not in da)
+check("Admin sieht alle Kunden und Konten", len(dc["kunden"]) >= 8 and "konten" in dc and "protokoll" in dc)
+check("Admin sieht Namen in Buchungen", any(b.get("gast") for b in dc["buchungen"]))
+check("Posten-Rest stimmt mit Kontostand", abs(sum(float(p["rest"]) for p in da["posten"] if p["bis"] >= str(heute)) - stand(A)) < 0.01)
+check("Basement sieht eigene Mitteilungen, nicht BlackClouds", all(m["partner"] == "basement" for m in dp["mitteilungen"]))
+check("Basement sieht Pauschalen-Kunden ohne Telefon", all(k["tel"] is None for k in dp["kunden"]) and ben in [k["id"] for k in dp["kunden"]])
+check("Andrews sieht Bewerbungen", "bewerbungen" in dk and isinstance(dk["bewerbungen"], list))
+check("Team hat eigene Rechteliste", "meine_rechte" in ad(T) and "eintragen" in ad(T)["meine_rechte"])
+check("Anfrage-Status nur mit Recht", A.fehler("select anfrage_status(1,'erledigt')") == "KEIN_ZUGRIFF")
+
+A.q("select anfrage_neu('paket','Paket 20 angefragt','{\"menge\":20}')")
+check("Paket-Anfrage mit Daten", ad(C)["anfragen"][0]["daten"] == {"menge": 20})
+check("Kunde setzt keinen Türcode", A.fehler("select tuercode_setzen(current_date,'1234')") == "KEIN_ZUGRIFF")
+C.q("select tuercode_setzen(current_date + 1,'4711')"); C.q("select tuercode_setzen(current_date + 9,'0815')")
+check("Team sieht Türcodes", len(ad(C)["codes"]) == 2)
+check("Kunde ohne Buchung am Tag sieht keinen Code", ad(B)["codes"] == {} or all(v != "0815" for v in ad(B)["codes"].values()))
 
 print(f"\n{ok} bestanden, {len(fails)} fehlgeschlagen")
 if fails: print("Fehlgeschlagen:", *fails, sep="\n  - "); sys.exit(1)

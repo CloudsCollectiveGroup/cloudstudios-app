@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CloudStudios</title>
+<meta name="theme-color" content="#07070A">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="bilder/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE: nüchterner Kontrollraum, knapp, deutsch
+   IDEA: Studio-Mischpult bei Nacht: drei Kanäle (Intern, Kunde, Partner) auf einem Pult
+   PICTURE: der Belegungsplan als Lichtbalken pro Raum, Guthaben-Ring beim Kunden
+   COLOUR/TYPE: tiefes Schwarz, CloudStudios-Gelb, Statusfarben aus TimeTree; Space Grotesk + Inter
+   LAYOUT: Kanalwahl oben, darunter die jeweilige Ansicht; Kunde im Handyrahmen */
+:root{color-scheme:dark;--bg:#07070A;--glas:rgba(255,255,255,.05);--rand:rgba(255,255,255,.11);--ink:#F2F2F0;--leise:#A3A3A8;--gelb:#4DA3FF;--marke:#F4C430;
+--gruen:#34C77B;--blau:#4C8DFF;--lila:#A77BFF;--rot:#FF5A5F;--grau:#8A8F98}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:#05060B;color:var(--ink);font:15px/1.5 Inter,-apple-system,system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;
+background:radial-gradient(40% 35% at 15% 10%,rgba(77,163,255,.38),transparent 70%),radial-gradient(35% 30% at 90% 25%,rgba(167,123,255,.30),transparent 70%),radial-gradient(45% 40% at 70% 95%,rgba(52,199,180,.22),transparent 70%),radial-gradient(30% 30% at 10% 80%,rgba(76,141,255,.25),transparent 70%);filter:blur(20px);animation:wabern 24s ease-in-out infinite alternate}
+@keyframes wabern{to{transform:translate3d(-3%,2%,0) scale(1.06)}}
+@media(prefers-reduced-motion:reduce){body::before{animation:none}}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;font-weight:500;margin:0;line-height:1.1}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;min-height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.05));box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 4px 14px rgba(0,0,0,.25);backdrop-filter:blur(18px) saturate(170%);-webkit-backdrop-filter:blur(18px) saturate(170%);padding:0 14px;transition:transform .15s ease,background .2s ease}
+button:active:not(:disabled){transform:scale(.97)}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--gelb);outline-offset:2px}
+button.primaer{background:linear-gradient(180deg,#7BBDFF,#3E8EF0);color:#04101F;border:1px solid rgba(255,255,255,.45);font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 24px rgba(77,163,255,.45),0 6px 18px rgba(0,0,0,.3)}
+button.aktiv{background:linear-gradient(180deg,rgba(123,189,255,.95),rgba(62,142,240,.95));color:#04101F;border-color:rgba(255,255,255,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 18px rgba(77,163,255,.4)}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,input{min-height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:0 12px;font-size:16px}
+select option{background:#141821}
+label{font-size:12px;color:var(--leise);display:flex;flex-direction:column;gap:4px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--leise);letter-spacing:.08em}
+.kopf{position:sticky;top:0;z-index:5;background:rgba(7,7,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--rand);padding:12px max(4vw,14px);display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.logo{font-family:'Space Grotesk';font-weight:700;letter-spacing:.2em;font-size:18px;display:flex;align-items:center;gap:6px}
+.logo svg{filter:drop-shadow(0 0 6px rgba(244,196,48,.8))}
+.kanaele{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.inhalt{padding:20px max(4vw,14px) 60px;max-width:1320px;margin:0 auto}
+.karte{position:relative;background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 55%,rgba(255,255,255,.07));border:1px solid rgba(255,255,255,.17);border-radius:22px;padding:14px 16px;backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.06),0 12px 34px rgba(0,0,0,.35)}
+.raster{display:grid;gap:12px}
+.kacheln{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.zahl{font-family:'Space Grotesk';font-weight:700;font-size:clamp(24px,3vw,32px)}
+.zeile{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.plan{display:flex;flex-direction:column;gap:8px}
+.planzeile{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:center}
+.bahn{position:relative;height:50px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+.block{position:absolute;top:3px;bottom:3px;border-radius:9px;backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);padding:4px 7px;overflow:hidden;font-size:11px;line-height:1.25;border-left:3px solid;cursor:default}
+.block b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.f-gruen{background:rgba(52,199,123,.18);border-color:var(--gruen);color:#BDF2D6}
+.f-blau{background:rgba(76,141,255,.2);border-color:var(--blau);color:#CFE0FF}
+.f-lila{background:rgba(167,123,255,.2);border-color:var(--lila);color:#E2D6FF}
+.f-rot{background:rgba(255,90,95,.2);border-color:var(--rot);color:#FFD2D3}
+.f-grau{background:rgba(138,143,152,.2);border-color:var(--grau);color:#D8DAE0}
+.f-belegt{background:repeating-linear-gradient(135deg,rgba(255,255,255,.1) 0 6px,rgba(255,255,255,.04) 6px 12px);border-color:rgba(255,255,255,.25);color:#C9C9CE}
+.jetzt{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--gelb);box-shadow:0 0 10px var(--gelb);pointer-events:none}
+.achse{display:flex;justify-content:space-between;margin-left:98px;font-family:'JetBrains Mono';font-size:10px;color:var(--leise)}
+.tage{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.tage button{flex:none;min-width:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 8px;line-height:1.2}
+.legende{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#C9C9CE}
+.legende i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.zweispaltig{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+@media(max-width:960px){.zweispaltig{grid-template-columns:minmax(0,1fr)}}
+.handy{max-width:410px;margin:0 auto;border-radius:34px;border:1px solid var(--rand);background:#07070A;padding:18px 16px 12px;box-shadow:0 30px 80px rgba(0,0,0,.6);position:relative;min-height:760px;display:flex;flex-direction:column}
+.handynav{margin-top:auto;display:flex;justify-content:space-around;border-top:1px solid var(--rand);padding-top:8px}
+.handynav button{border:none;background:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;font-size:11px;color:#B9BCC6;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;min-width:56px;border-radius:24px;flex:1}
+.handynav button.aktiv{color:#9CCBFF;background:rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.toast{position:absolute;left:12px;right:12px;top:12px;z-index:3;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.08));backdrop-filter:blur(30px) saturate(190%);-webkit-backdrop-filter:blur(30px) saturate(190%);border:1px solid rgba(255,255,255,.25);border-radius:22px;padding:10px 12px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:rein .3s ease}
+@keyframes rein{from{transform:translateY(-10px);opacity:0}}
+@media(prefers-reduced-motion:reduce){.toast{animation:none}}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.liste{display:flex;flex-direction:column;gap:8px}
+.hinweis{font-size:12px;color:var(--leise)}
+.fehler{border-color:rgba(255,90,95,.5);background:rgba(255,90,95,.1)}
+.ok{border-color:rgba(52,199,123,.5);background:rgba(52,199,123,.1)}
+.ring{display:block}
+.pruef{font-size:13px}
+.pruef li{margin:4px 0}
+.ab-weg{display:none}
+#dev{position:fixed;top:max(10px,env(safe-area-inset-top));right:10px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+#dev .knopf{min-height:40px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.25);color:#CFE4FF;font-size:13px;font-weight:600}
+#test .banner{position:fixed;left:10px;right:58px;top:max(10px,env(safe-area-inset-top));z-index:19;max-width:430px;padding:10px 12px;border-radius:20px;background:linear-gradient(180deg,rgba(30,50,90,.92),rgba(16,24,44,.92));backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(77,163,255,.55);box-shadow:0 12px 40px rgba(0,0,0,.55);font-size:14px;line-height:1.35}
+#test .blatt{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+#test .blatt>div{width:min(480px,100%);max-height:88vh;overflow:auto;border-radius:28px 28px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(32,36,48,.97),rgba(14,16,22,.98));border:1px solid rgba(255,255,255,.16)}
+.testlauf .handy{padding-top:170px!important}
+#dev .panel{width:min(290px,calc(100vw - 20px));background:linear-gradient(180deg,rgba(40,44,56,.85),rgba(20,22,30,.85));backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid rgba(255,255,255,.2);border-radius:22px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.vollbild{padding:0!important;max-width:none!important}
+.vollbild .handy{max-width:480px;margin:0 auto;border:none;border-radius:0;box-shadow:none;background:transparent;min-height:100vh;min-height:100dvh;padding:18px 16px calc(120px + env(safe-area-inset-bottom))}
+.vollbild .handynav{position:fixed;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:456px;border:1px solid rgba(255,255,255,.2);border-radius:32px;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));backdrop-filter:blur(28px) saturate(190%);-webkit-backdrop-filter:blur(28px) saturate(190%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 16px 40px rgba(0,0,0,.5);padding:6px;z-index:4}
+.vollbild .toast{position:fixed;left:50%;transform:translateX(-50%);width:min(456px,calc(100vw - 24px));top:12px}
+
+body.live #dev,body.live #test{display:none!important}
+#live-leiste{position:fixed;right:10px;top:max(10px,env(safe-area-inset-top));z-index:30}
+</style>
+</head>
+<body>
+
+<main class="inhalt" id="app"></main>
+<div id="dev"></div><div id="test"></div>
+
+<script src="config.js"></script>
+<script>
+{
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+// Echte Uhrzeit (Hamburg). Tag 0 = heute, die Woche läuft ab heute.
+const berlin = (d) => Object.fromEntries(new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).map((p) => [p.type, p.value]));
+const jetztTeile = berlin(new Date());
+const JETZT = +jetztTeile.hour + +jetztTeile.minute / 60;
+const UHR = jetztTeile.hour + ':' + jetztTeile.minute;
+const HEUTE = Date.UTC(+jetztTeile.year, +jetztTeile.month - 1, +jetztTeile.day);
+const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const datum = (i) => new Date(HEUTE + i * 864e5);
+// Buchbar: heute bis Ende des übernächsten Monats
+const ENDE = Date.UTC(+jetztTeile.year, +jetztTeile.month + 2, 0);
+const TAGE = Array.from({ length: Math.round((ENDE - HEUTE) / 864e5) + 1 }, (_, i) => { const d = datum(i); return WT[d.getUTCDay()] + ' ' + String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.'; });
+TAGE[-1] = 'Gestern';
+const abs = (tag, std) => tag * 24 + std;
+const STUDIOS = [
+  { id: 's1', name: 'Studio 1', sub: '1 Cr/Std.', cph: 1, partner: null, selbst: true },
+  { id: 's3', name: 'Studio 3', sub: 'Basement', cph: 1, partner: 'basement', selbst: true },
+  { id: 's4', name: 'Studio 4', sub: 'BlackClouds', cph: 2, partner: 'blackclouds', selbst: true },
+  { id: 's5', name: 'Studio 5', sub: 'auf Anfrage', cph: 4.5, partner: 'blackclouds', selbst: false },
+  { id: 'lounge', name: 'Lounge', sub: 'Events', cph: 0, partner: null, selbst: false }
+];
+const ST = Object.fromEntries(STUDIOS.map((s) => [s.id, s]));
+const TARIFE = {
+  'PA 201': { name: 'Multi-Studio S', cr: 20 }, 'PA 202': { name: 'Multi-Studio M', cr: 30 }, 'PA 203': { name: 'Multi-Studio L', cr: 40 },
+  'PA 204': { name: 'Multi-Studio XL', cr: 50 }, 'PA 210': { name: 'Family & Friends', cr: 24, nur: ['s1'], einladung: true }, 'PA 220': { name: 'CloudsMember', cr: 60, einladung: true }
+};
+const HOERER = ['unter 1.000', '1.000–10.000', '10.000–50.000', '50.000–250.000', 'über 250.000'];
+const RELEASES = ['keine', '1–2', '3–5', '6 oder mehr'];
+const RECHTE = [['kalender', 'Kalender sehen'], ['eintragen', 'Termine und Walk-Ins eintragen'], ['anfragen', 'Anfragen bearbeiten'], ['kunden', 'Kundenakten sehen'], ['codes', 'Türcodes pflegen'], ['aufladen', 'Credits aufladen, Zahlungen bestätigen'], ['kulanz', 'Kulanz und Korrekturen'], ['zahlen', 'Monatszahlen und Export'], ['abrechnung', 'Partner-Abrechnung'], ['konten', 'Konten anlegen und sperren'], ['einstellungen', 'Einstellungen und Tarife']];
+const PTYPEN = [{ name: 'Basement 40', cr: 40, brutto: 300, nur: ['s3'], partner: 'basement' }];
+const ROLLEN = {
+  admin: { name: 'Admin', rechte: 'alles, auch Kulanz, Korrekturen und Konten' },
+  buchung: { name: 'Buchung', rechte: 'Kalender, Eintragen, Anfragen, Kunden, Türcodes' },
+  geld: { name: 'Geld & Kontrolle', rechte: 'Monatszahlen, Abrechnung, Export, Protokoll · Credits aufladen' },
+  marketing: { name: 'Marketing', rechte: 'Monatszahlen und Auslastung, nur lesen' },
+  betrieb: { name: 'Studio-Betrieb', rechte: 'Kalender, Türcodes, Zustandsmeldungen, Mitglieder' },
+  records: { name: 'Clouds Records', rechte: 'Label-Künstler und deren Credits' }
+};
+const PARTNER = { basement: { name: 'Basement Studios', person: 'Basement-Team', studios: ['s3'] }, blackclouds: { name: 'BlackClouds', person: 'Andrews', studios: ['s4', 's5'] } };
+const EXTRAS = { tlm103: { name: 'Neumann TLM 103', cr: 1, crMitglied: 0 }, u87: { name: 'Neumann U87', cr: 2, crMitglied: 1 } };
+const EVENTS = {
+  release: { name: 'Release Party', std: 6, preis: 450, plusStd: 80, max: 40, kaution: 300, snacks: 5,
+    getraenke: [['Ohne', 0], ['Soft', 12], ['Classic', 25], ['Premium', 35], ['Signature', 45]] },
+  listening: { name: 'Listening Session', std: 3, preis: 150, plusStd: 40, max: 10, kaution: 150, inkl: 'Snacks inklusive',
+    getraenke: [['Ohne', 0], ['Soft', 7], ['Classic', 15]] },
+  camp: { name: 'Songwriter Camp', std: 10, preis: 349, plusStd: 0, max: 8, kaution: 0,
+    getraenke: [['Ohne', 0], ['Soft', 15], ['Classic', 28]], studios: [['Nur Studio 1', 0, 8], ['+ Studio 3', 129, 11], ['+ Studio 3 und 4', 298, 14]] }
+};
+const SHOP = {
+  pakete: [{ id: 'p10', name: '10 Credits', preis: 145, credits: 10, info: '14,50 € pro Credit' }, { id: 'p20', name: '20 Credits', preis: 280, credits: 20, info: '14,00 € pro Credit' }, { id: 'p30', name: '30 Credits', preis: 415, credits: 30, info: '13,83 € pro Credit' }, { id: 'p40', name: '40 Credits', preis: 540, credits: 40, info: '13,50 € pro Credit' }],
+  gutscheine: [{ id: 'g4', name: 'Gutschein 4 Std. Studio 1', preis: 60, credits: 4, info: 'zum Verschenken · 3 Monate ab Einlösung' }, { id: 'g8', name: 'Gutschein 8 Std. Studio 1', preis: 120, credits: 8, info: 'zum Verschenken · 3 Monate ab Einlösung' }],
+  merch: [{ id: 'm1', name: 'Clouds Records Shirt' }, { id: 'm2', name: 'Clouds Records Hoodie' }, { id: 'm3', name: 'CloudStudios Cap' }]
+};
+const ARTIKEL = Object.fromEntries([...SHOP.pakete, ...SHOP.gutscheine].map((a) => [a.id, a]));
+const RAEUME = [
+  { id: 's1', name: 'Studio 1', zeile: 'Recording und Produktion unter der Wolkendecke', personen: 'bis 5', flaeche: '17 m²', treiber: 'Apollo Twin X',
+    merkmale: ['5 Plätze', 'Lounge-Ecke mit Couch', 'Wolkendecke mit Ambientlicht', 'Gesangsplatz mit Reflexionsfilter', 'Rauchfrei'],
+    ausstattung: [['Monitore', 'Focal'], ['Interface', 'Universal Audio Apollo Twin X'], ['Interface 2', 'Universal Audio Volt'], ['Monitor-Controller', 'ja'], ['Mikrofon', 'Neumann TLM 102 (Standard)'], ['Preamp', 'dbx'], ['Kompressor', 'Klark Teknik 76-KT'], ['Kopfhörerverstärker', 'Millenium, 4 Ausgänge'], ['Kopfhörer', '2 × beyerdynamic DT 990 PRO']],
+    regeln: ['Rauchen und Vapen nicht gestattet'], preis: '1 Credit / Std.',
+    fotos: [['s1-01', 'Studio 1 mit Arbeitsplatz und Gesangsplatz'], ['s1-02', 'Arbeitsplatz mit Focal-Monitoren'], ['s1-03', 'Lounge-Ecke unter der Wolkendecke'], ['s1-04', 'Pult mit Outboard'], ['s1-05', 'Gesangsplatz mit Reflexionsfilter'], ['s1-06', 'Gesangsplatz'], ['s1-07', 'Apollo Twin X und Monitor-Controller'], ['s1-08', 'Klark Teknik 76-KT'], ['s1-09', 'dbx Preamp und Millenium Kopfhörerverstärker'], ['s1-10', 'beyerdynamic DT 990 PRO']] },
+  { id: 's3', name: 'Basement Studio 3', zeile: 'Ein CloudStudios-Partner', personen: 'max. 5', flaeche: '[X] m²', merkmale: ['WLAN', 'Rauchen erlaubt'], ausstattung: [['Mikrofon', 'Neumann TLM 102'], ['Interface', '[Modell]'], ['Monitore', '[Modell]'], ['Kopfhörer', '[Anzahl · Modell]']], regeln: ['Rauchen und Vapen gestattet', 'Gegenstände der Betreiber nicht anfassen', 'Raum ordentlich hinterlassen'], preis: '1 Credit / Std.' },
+  { id: 's4', name: 'BlackClouds Studio 4', zeile: 'Basic · Produktion und Recording', personen: '[X]', flaeche: '[X] m²', merkmale: ['WLAN'], ausstattung: [['Mikrofon', 'Neumann TLM 102'], ['Interface', '[Modell]'], ['Monitore', '[Modell]'], ['Kopfhörer', '[Anzahl · Modell]']], regeln: ['Rauchen und Vapen nicht gestattet'], preis: '2 Credits / Std.' },
+  { id: 's5', name: 'BlackClouds Studio 5', zeile: 'Premium · Produktion, Mix und Recording · nur auf Anfrage', personen: '[X]', flaeche: '[X] m²', format: 'quer', treiber: 'Apollo x4',
+    merkmale: ['Premium', 'Lounge-Bereich mit Sessel und Sofa', 'LED-Ambientlicht', 'Akustik-Deckensegel', 'Großer Bildschirm'],
+    ausstattung: [['Monitore', 'Genelec, koaxial [Modell bestätigen]'], ['Interface', 'Universal Audio Apollo x4'], ['Studiotisch', 'Zaor mit Rack-Seitenteilen'], ['Mikrofon', 'Großmembran-Mikrofon [Modell]'], ['Kopfhörer', 'beyerdynamic DT 770 PRO (250 Ohm)'], ['Arbeitsplatz', 'großer Bildschirm, 2 Studiostühle']],
+    regeln: ['Vergabe nur nach Freigabe durch BlackClouds', 'Rauchen und Vapen nicht gestattet'], preis: '4,5 Credits / Std.',
+    fotos: [['s5-01', 'Arbeitsplatz mit Zaor-Tisch und Genelec-Monitoren'], ['s5-02', 'Gesangsplatz vor dem Arbeitsplatz'], ['s5-03', 'Großmembran-Mikrofon im Shockmount'], ['s5-04', 'Universal Audio Apollo x4'], ['s5-05', 'Genelec-Monitor'], ['s5-06', 'Lounge-Bereich und Arbeitsplätze'], ['s5-07', 'Rack mit Outboard'], ['s5-08', 'Deckensegel und LED-Licht']] },
+  { id: 'lounge', name: 'Lounge & Eventfläche', zeile: 'Release Partys, Listening Sessions, Camps', personen: 'bis 40', flaeche: '[X] m²', merkmale: ['Großer TV', 'PlayStation 5', 'DJ-Setup', 'Küche'], ausstattung: [['Bereich', 'Lounge + Vorbereich'], ['Technik', 'TV, PS5, kleines DJ-Setup'], ['Versorgung', 'Küche, WC'], ['Getränke', 'nur über CloudStudios']], regeln: ['Keine eigenen Getränke', 'Bei Events ist das Team vor Ort'], preis: 'nur als Veranstaltung' }
+];
+const RAUM = Object.fromEntries(RAEUME.map((r) => [r.id, r]));
+const CODES7 = ['4821', '7390', '1156', '6604', '2938', '5517', '8042'];
+const CODES = new Proxy(CODES7, { get: (a, i) => (typeof i === 'string' && /^\d+$/.test(i)) ? a[+i % 7] : a[i] });
+
+const S = {
+  sicht: 'intern', kunde: 'anna', kTab: 'start', tag: 0, pTag: 0, ftag: 1, meldungen: [], codes: {}, akte: null, suche: '', iKal: 'aktiv', iTab: 'dashboard', iArt: 'walkin', ansicht: { tag: 'woche', ftag: 'tag', pTag: 'woche' }, partner: 'blackclouds', toast: null,
+  bModus: 'studio', raum: 's1', korb: {}, widerruf: false, merkliste: {}, gutscheine: [{ code: 'CS-GIFT-7K2P', credits: 4, eingeloest: false }], eform: { art: 'release', start: 18, gaeste: 25, getraenk: 2, snacks: true, plus: 0, camp: 0, notiz: '' },
+  form: { studio: 's1', tag: 1, start: 14, std: 4, tlm103: false, u87: false },
+  kunden: {
+    anna: { name: 'Anna Weber', kn: 'KN-101', mitglied: null, tel: '+49 151 00000101', status: 'Freigegeben', seit: '03/2026', notiz: '' },
+    olga: { name: 'Olga Petrov', kn: 'KN-106', mitglied: 'PA 202 M', tel: '+49 151 00000106', status: 'Freigegeben', seit: '07/2026', notiz: 'Fester Slot Do abends' },
+    ben: { name: 'Ben Okafor', kn: 'KN-102', mitglied: 'Basement 40', tel: '+49 151 00000102', status: 'Freigegeben', seit: '01/2026', notiz: '' },
+    tom: { name: 'Tom Richter', kn: 'KN-107', mitglied: null, tel: '+49 151 00000107', status: 'Versendet', seit: '11/2026', notiz: '' },
+    lena: { name: 'Lena Hoffmann', kn: 'KN-111', mitglied: 'PA 201 S', tel: '+49 151 00000111', status: 'Freigegeben', seit: '09/2026', notiz: 'Beispiel PA 201' },
+    jonas: { name: 'Jonas Klein', kn: 'KN-112', mitglied: 'PA 203 L', tel: '+49 151 00000112', status: 'Freigegeben', seit: '05/2026', notiz: 'Beispiel PA 203' },
+    mara: { name: 'Mara Yilmaz', kn: 'KN-113', mitglied: 'PA 204 XL', tel: '+49 151 00000113', status: 'Freigegeben', seit: '02/2026', notiz: 'Beispiel PA 204' },
+    paul: { name: 'Paul Neumann', kn: 'KN-114', mitglied: 'PA 210 F&F', tel: '+49 151 00000114', status: 'Freigegeben', seit: '06/2026', notiz: 'Beispiel PA 210, ohne Partnerstudios' },
+    vic: { name: 'Victor Lang', kn: 'KN-115', mitglied: 'PA 220 CloudsMember', tel: '+49 151 00000115', status: 'Freigegeben', seit: '10/2026', notiz: 'Beispiel PA 220' },
+    kiro: { name: 'Kiro (Artist)', kn: 'KN-116', mitglied: null, label: 'Artist', tel: '+49 151 00000116', status: 'Freigegeben', seit: '08/2026', notiz: 'Beispiel Clouds Records' }
+  },
+  posten: [
+    { id: 1, kunde: 'anna', art: 'Bonus', credits: 2, bis: '08.12.2026', bisAbs: abs(14, 24), nur: ['s1', 's3'], rn: '' },
+    { id: 2, kunde: 'anna', art: 'Paket 20', credits: 20, bis: '22.02.2027', bisAbs: 9e9, nur: null, rn: 'RN-CS-900' },
+    { id: 3, kunde: 'olga', art: 'Mitglied 11/2026', credits: 30, bis: '30.11.2026', bisAbs: abs(6, 24), nur: null, rn: 'VN-021' },
+    { id: 4, kunde: 'ben', art: 'Basement 40 · 11/2026', credits: 40, bis: '30.11.2026', bisAbs: abs(6, 24), nur: ['s3'], rn: 'Pauschale', basement: true },
+    { id: 5, kunde: 'tom', art: 'Paket 10', credits: 10, bis: '20.02.2027', bisAbs: 9e9, nur: null, rn: 'RN-CS-905' },
+    { id: 6, kunde: 'lena', art: 'Mitglied 11/2026', credits: 20, bis: '30.11.2026', bisAbs: abs(6, 24), nur: null, rn: 'VN-031' },
+    { id: 7, kunde: 'jonas', art: 'Mitglied 11/2026', credits: 40, bis: '30.11.2026', bisAbs: abs(6, 24), nur: null, rn: 'VN-032' },
+    { id: 8, kunde: 'mara', art: 'Mitglied 11/2026', credits: 50, bis: '30.11.2026', bisAbs: abs(6, 24), nur: null, rn: 'VN-033' },
+    { id: 9, kunde: 'paul', art: 'Mitglied 11/2026 (F&F)', credits: 24, bis: '30.11.2026', bisAbs: abs(6, 24), nur: ['s1'], rn: 'VN-034' },
+    { id: 10, kunde: 'vic', art: 'Mitglied 11/2026', credits: 60, bis: '30.11.2026', bisAbs: abs(6, 24), nur: null, rn: 'VN-035' },
+    { id: 11, kunde: 'kiro', art: 'Label-Credits 11/2026', credits: 20, bis: '30.11.2026', bisAbs: abs(6, 24), nur: ['s1'], rn: 'Clouds Records' }
+  ],
+  buchungen: [], zuord: [], anfragen: [], protokoll: [], nr: 120, kontoArt: 'paket', einladung: null, gesperrt: [],
+  team: [{ name: 'Cem Satiroglu', mail: 'management@cloudsgroup.de', rolle: 'admin' }, { name: 'Thorben', mail: 'thorben@…', rolle: 'geld' }, { name: 'Nikolina', mail: 'nikolina@…', rolle: 'marketing' }, { name: 'Kaspar', mail: 'kaspar@…', rolle: 'records' }, { name: 'Anuj', mail: 'anuj@…', rolle: 'betrieb' }],
+  zugaenge: [{ name: 'Andrews', mail: 'andrews@…', partner: 'blackclouds' }, { name: 'Basement Zugang 1', mail: '…', partner: 'basement' }, { name: 'Basement Zugang 2', mail: '…', partner: 'basement' }, { name: 'Basement Zugang 3', mail: '…', partner: 'basement' }],
+  pauschalen: [{ kunde: 'ben', name: 'Basement 40', brutto: 300 }],
+  test: { aktiv: false, i: 0, done: [] }, testListe: false,
+  s5frei: ['olga'], geprueft: {}, eTab: 'studio5', bewerbungen: {},
+  einst: { partnerMax220: 30, minHoerer: 2, minReleases: 1, ohneNoShow: true },
+  rechte: { admin: RECHTE.map((r) => r[0]), buchung: ['kalender', 'eintragen', 'anfragen', 'kunden', 'codes'], geld: ['kalender', 'zahlen', 'abrechnung'], marketing: ['zahlen'], betrieb: ['kalender', 'codes', 'anfragen'], records: ['kalender', 'kunden'] }, zForm: { raum: '', text: '', foto: '' }, brettZiel: 'blackclouds',
+  brett: [
+    { id: 1, partner: 'blackclouds', von: 'CloudStudios', text: 'Am Mi kommt der Techniker für die Klimaanlage, ca. 10–12 Uhr. Studio 4 bitte bis dahin frei lassen.', zeit: 'gestern', neu: true },
+    { id: 2, partner: 'blackclouds', von: 'BlackClouds', text: 'Alles klar, ist eingetragen.', zeit: 'gestern', neu: false },
+    { id: 3, partner: 'basement', von: 'CloudStudios', text: 'Ab Dezember gilt die neue Credit-Abrechnung. Die Gutschrift kommt jeweils zum Monatsende.', zeit: 'Mo', neu: true }
+  ]
+};
+const neueId = () => ++S.nr;
+const log = (wer, text) => S.protokoll.unshift({ zeit: new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date()), wer, text });
+
+function postenRest(p) {
+  return p.credits - S.zuord.filter((z) => z.posten === p.id && !S.buchungen.find((b) => b.id === z.buchung).erstattet).reduce((a, z) => a + z.credits, 0);
+}
+function aktiv(b) { return ['angefragt', 'gebucht', 'geschlossen', 'blockiert'].includes(b.status) && !(b.status === 'angefragt' && b.reserviertBis < JETZT); }
+function belegt(studio, tag, von, bis, ohne) {
+  return S.buchungen.find((b) => b.id !== ohne && aktiv(b) && b.studio === studio && b.tag === tag && von < b.bis && bis > b.von);
+}
+function extraBelegt(ex, tag, von, bis) {
+  return S.buchungen.find((b) => aktiv(b) && (b.extras || []).includes(ex) && b.tag === tag && von < b.bis && bis > b.von);
+}
+function nutzbar(kunde, studio, tag, bis) {
+  const ende = abs(tag, bis);
+  return S.posten.filter((p) => p.kunde === kunde && p.bisAbs >= ende && (!p.nur || p.nur.includes(studio)))
+    .map((p) => ({ p, rest: postenRest(p) })).filter((x) => x.rest > 0).sort((a, b) => a.p.bisAbs - b.p.bisAbs || a.p.id - b.p.id);
+}
+function guthaben(kunde) { return S.posten.filter((p) => p.kunde === kunde && p.bisAbs >= JETZT).reduce((a, p) => a + Math.max(0, postenRest(p)), 0); }
+function reserviert(kunde) { return S.buchungen.filter((b) => b.kunde === kunde && b.status === 'gebucht' && !b.erstattet && abs(b.tag, b.von) > JETZT).reduce((a, b) => a + b.credits, 0); }
+function farbe(b) {
+  if (b.status === 'angefragt') return 'gruen';
+  if (b.status === 'geschlossen') return 'rot';
+  if (b.status === 'blockiert') return 'grau';
+  return b.kunde && S.kunden[b.kunde]?.mitglied ? 'lila' : 'blau';
+}
+
+function s5Formular(f) {
+  const alt = S.bewerbungen[S.kunde], sel = (n, arr, v) => `<select name="${n}">${arr.map((x, i) => `<option value="${i}" ${i === v ? 'selected' : ''}>${x}</option>`).join('')}</select>`;
+  return `<div class="karte" style="margin-top:12px;border-color:rgba(167,123,255,.45);background:linear-gradient(160deg,rgba(167,123,255,.14),rgba(255,255,255,.03))">
+    <div class="mono" style="color:#E2D6FF">PREMIUM · NUR MIT FREIGABE</div><b style="display:block;margin-top:4px;font-size:17px">Bewerbung für BlackClouds Studio 5</b>
+    <div class="hinweis" style="margin-top:4px">Studio 5 ist etablierten Künstlerinnen und Künstlern vorbehalten. BlackClouds entscheidet persönlich. Wer einmal dauerhaft freigegeben ist, bucht danach selbst.</div>
+    <form id="f-s5" class="liste" style="margin-top:12px;gap:10px">
+      <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr))"><label>Beginn<select name="start">${Array.from({ length: 15 }, (_, i) => i + 8).map((h) => `<option ${h === f.start ? 'selected' : ''}>${h}</option>`).join('')}</select></label><label>Stunden<select name="std">${[2, 3, 4, 5, 6, 8, 10].map((h) => `<option ${h === f.std ? 'selected' : ''}>${h}</option>`).join('')}</select></label></div>
+      <label>Künstlername<input name="kuenstler" required value="${esc(alt?.kuenstler || '')}" style="min-height:48px"></label>
+      <label>Link (Spotify, Instagram oder YouTube)<input name="link" required value="${esc(alt?.link || '')}" style="min-height:48px"></label>
+      <label>Monatliche Hörer (Spotify)${sel('hoerer', HOERER, alt?.hoerer ?? 0)}</label>
+      <label>Releases in den letzten 12 Monaten${sel('releases', RELEASES, alt?.releases ?? 0)}</label>
+      <label>Label, Management oder Team (falls vorhanden)<input name="label" value="${esc(alt?.label || '')}" style="min-height:48px"></label>
+      <label>Was wollen Sie aufnehmen?<input name="projekt" required placeholder="z. B. Single, Album, Vocals" style="min-height:48px"></label>
+      <label style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" name="engineer" ${alt?.engineer ? 'checked' : ''}> Ich bringe einen eigenen Engineer mit</label>
+      <label style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" name="regeln" required ${alt?.regeln ? 'checked' : ''}> Ich halte mich an die Studioregeln von BlackClouds (pünktlich, sorgfältig mit dem Equipment, keine fremden Gäste ohne Absprache)</label>
+      <button class="primaer" type="submit" style="min-height:52px">Bewerbung für ${TAGE[f.tag]} senden</button>
+    </form></div>`;
+}
+function selbstBuchbar(studio, kunde) { return !!ST[studio]?.selbst || (studio === 's5' && S.s5frei.includes(kunde)); }
+// Buchen mit Credits (Regeln wie in der Datenbank)
+function creditsBuchen({ kunde, studio, tag, start, std, extras = [], durchTeam = false, seed = false }) {
+  const st = ST[studio];
+  if (!st || !st.cph) return 'Dieser Raum ist nur für Veranstaltungen.';
+  if (!durchTeam && S.gesperrt.includes(kunde)) return 'Ihr Konto ist gesperrt. Bitte melden Sie sich beim Team.';
+  if (!durchTeam && !selbstBuchbar(studio, kunde)) return 'NUR_AUF_ANFRAGE';
+  if (std < 2) return 'Mindestens 2 Stunden.';
+  if (start + std > 24) return 'Die Session muss bis 24:00 enden.';
+  if (!seed && abs(tag, start) < JETZT) return 'Dieser Zeitpunkt liegt in der Vergangenheit.';
+  if (belegt(studio, tag, start, start + std)) return 'SLOT_BELEGT';
+  if (studio === 's1' && belegt('lounge', tag, start, start + std)) return 'SLOT_BELEGT';
+  for (const ex of extras) if (extraBelegt(ex, tag, start, start + std)) return EXTRAS[ex].name + ' ist zu dieser Zeit schon vergeben.';
+  const mitglied = !!S.kunden[kunde].mitglied;
+  const extraCr = extras.reduce((a, ex) => a + (mitglied ? EXTRAS[ex].crMitglied : EXTRAS[ex].cr), 0);
+  const bedarf = std * st.cph + extraCr;
+  if ((S.kunden[kunde].mitglied || '').startsWith('PA 220') && ['s3', 's4', 's5'].includes(studio)) {
+    const genutzt = partnerCreditsImMonat(kunde, tag), max = S.einst.partnerMax220;
+    if (genutzt + bedarf > max) return `In Partnerstudios sind pro Monat höchstens ${fmt(max)} Credits Ihrer Mitgliedschaft nutzbar. Übrig: ${fmt(Math.max(0, max - genutzt))}.`;
+  }
+  const verf = nutzbar(kunde, studio, tag, start + std);
+  const summe = verf.reduce((a, x) => a + x.rest, 0);
+  if (!verf.length && guthaben(kunde) > 0) return 'Ihre Credits gelten nicht für ' + st.name + '.';
+  if (summe < bedarf) return 'ZU_WENIG:' + Math.max(0, Math.floor((summe - extraCr) / st.cph * 2) / 2);
+  const id = neueId();
+  S.buchungen.push({ id, studio, tag, von: start, bis: start + std, status: 'gebucht', kunde, credits: bedarf, extras, erstattet: false });
+  let offen = bedarf;
+  for (const x of verf) { if (offen <= 0) break; const n = Math.min(x.rest, offen); S.zuord.push({ buchung: id, posten: x.p.id, credits: n }); offen -= n; }
+  log(durchTeam ? 'Team' : S.kunden[kunde].name, `${st.name} ${TAGE[tag]} ${start}–${start + std} Uhr gebucht (${fmt(bedarf)} Credits)`);
+  return id;
+}
+function monatsEndeTag() { return Math.round((Date.UTC(datum(0).getUTCFullYear(), datum(0).getUTCMonth() + 1, 1) - HEUTE) / 864e5); }
+function partnerCreditsImMonat(kunde, tag) {
+  const me = monatsEndeTag(), gleich = (t) => (t < me) === (tag < me);
+  return S.buchungen.filter((b) => b.kunde === kunde && ['s3', 's4', 's5'].includes(b.studio) && gleich(b.tag) && (b.status === 'gebucht' || (b.status === 'storniert' && !b.erstattet))).reduce((a, b) => a + b.credits, 0);
+}
+function rechteText(rolle) { const r = S.rechte[rolle] || []; return r.length ? RECHTE.filter(([id]) => r.includes(id)).map(([, l]) => l).join(', ') : 'noch nichts freigeschaltet'; }
+function kriterien(kunde, bew) {
+  return [
+    [`Reichweite ab ${HOERER[S.einst.minHoerer].replace(/^unter /, '').split('–')[0]} Hörern im Monat`, bew.hoerer >= S.einst.minHoerer],
+    [`Mindestens ${['0 Releases', '1 Release', '3 Releases', '6 Releases'][S.einst.minReleases]} in 12 Monaten`, bew.releases >= S.einst.minReleases],
+    ['Professionell: Label, Management oder eigenes Team', !!(bew.label || '').trim()],
+    ['Regeln von BlackClouds akzeptiert', !!bew.regeln],
+    ...(S.einst.ohneNoShow ? [['Bisher keine nicht wahrgenommenen Termine', noShows(kunde) === 0]] : [])
+  ];
+}
+function teamMeldung(titel, text, buchung) {
+  S.meldungen.unshift({ id: neueId(), titel, text, buchung, zeit: new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date()), neu: true });
+}
+function stornieren(id, wer) {
+  const b = S.buchungen.find((x) => x.id === id);
+  const frist = abs(b.tag, b.von) - JETZT > 24;
+  b.status = 'storniert'; b.erstattet = b.credits > 0 && frist;
+  b.stornoVon = wer; b.stornoAm = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date());
+  log(wer, `${ST[b.studio].name} ${TAGE[b.tag]} storniert, Credits ${b.erstattet ? 'zurück' : 'bleiben abgezogen'}`);
+  return b.erstattet;
+}
+
+// Startdaten
+function seed() {
+  creditsBuchen({ kunde: 'anna', studio: 's1', tag: 1, start: 10, std: 3, extras: ['tlm103'], seed: true });
+  creditsBuchen({ kunde: 'olga', studio: 's4', tag: 0, start: 17, std: 4, seed: true });
+  creditsBuchen({ kunde: 'ben', studio: 's3', tag: 0, start: 18, std: 4, seed: true });
+  creditsBuchen({ kunde: 'tom', studio: 's3', tag: 2, start: 12, std: 3, seed: true });
+  creditsBuchen({ kunde: 'olga', studio: 's5', tag: 3, start: 14, std: 3, durchTeam: true, seed: true });
+  creditsBuchen({ kunde: 'tom', studio: 's4', tag: -1, start: 18, std: 3, durchTeam: true, seed: true });
+  creditsBuchen({ kunde: 'anna', studio: 's5', tag: -1, start: 13, std: 2, durchTeam: true, seed: true });
+  creditsBuchen({ kunde: 'ben', studio: 's3', tag: -1, start: 19, std: 3, durchTeam: true, seed: true });
+  S.buchungen.push({ id: neueId(), studio: 's1', tag: -1, von: 16, bis: 20, status: 'gebucht', gast: 'Lea Brandt', kn: 'KN-110', walkin: true, rechnung: 'RN-CS-946', credits: 0, preis: 60, extras: [] });
+  S.buchungen.push({ id: neueId(), studio: 's1', tag: 0, von: 10, bis: 14, status: 'gebucht', gast: 'Max Berger', kn: 'KN-108', walkin: true, rechnung: 'RN-CS-948', credits: 0, preis: 60, extras: [] });
+  S.buchungen.push({ id: neueId(), studio: 's1', tag: 2, von: 14, bis: 18, status: 'angefragt', gast: 'Sara Kim', kn: 'KN-109', walkin: true, credits: 0, preis: 60, extras: [], reserviertBis: abs(1, 14), angebot: 'AN-CS-501' });
+  S.buchungen.push({ id: neueId(), studio: 's3', tag: 0, von: 9, bis: 13, status: 'blockiert', grund: 'Eigennutzung Basement', partner: 'basement', credits: 0, extras: [] });
+  creditsBuchen({ kunde: 'jonas', studio: 's4', tag: 1, start: 14, std: 4, seed: true });
+  creditsBuchen({ kunde: 'kiro', studio: 's1', tag: 2, start: 19, std: 4, seed: true });
+  creditsBuchen({ kunde: 'mara', studio: 's3', tag: 3, start: 10, std: 6, seed: true });
+  creditsBuchen({ kunde: 'vic', studio: 's4', tag: 2, start: 10, std: 6, seed: true });
+  ereignisEintragen(4, 18, 24, 'Release Party · KN-104');
+  S.anfragen.push({ id: neueId(), art: 'paket', kunde: 'tom', text: 'Paket 20 angefragt', menge: 20, status: 'offen' });
+  S.bewerbungen.anna = { kuenstler: 'NOVA', link: 'open.spotify.com/artist/…', hoerer: 2, releases: 2, label: 'Independent, eigenes Management', projekt: 'Albumaufnahme, Vocals und Mix', engineer: true, regeln: true };
+  S.anfragen.push({ id: neueId(), art: 's5', kunde: 'anna', text: 'Studio 5: Sa 28.11., 14–18 Uhr, Albumaufnahme', status: 'offen', tag: 4, start: 14, std: 4, seed: true, bew: S.bewerbungen.anna });
+  S.protokoll = [{ zeit: 'heute', wer: 'Anna', text: 'Studio 1 Mi 25.11. 10–13 Uhr gebucht (4 Credits)' }, { zeit: 'heute', wer: 'Basement', text: 'Studio 3 heute 9–13 Uhr blockiert (Eigennutzung)' }];
+}
+function ereignisEintragen(tag, von, bis, titel) {
+  for (const r of ['lounge', 's1']) if (belegt(r, tag, von, bis)) return `${ST[r].name} ist in dieser Zeit schon belegt.`;
+  const gid = neueId();
+  for (const r of ['lounge', 's1']) S.buchungen.push({ id: neueId(), gruppe: gid, studio: r, tag, von, bis, status: 'geschlossen', grund: r === 's1' ? titel + ' (gesperrt)' : titel, credits: 0, extras: [] });
+  log('Team', `Veranstaltung ${TAGE[tag]} ${von}–${bis} Uhr: Lounge + Studio 1 gesperrt`);
+  return null;
+}
+
+// ---------- Darstellung ----------
+const app = document.getElementById('app');
+function toast(text) { S.toast = text; render(); setTimeout(() => { if (S.toast === text) { S.toast = null; render(); } }, 3800); }
+
+function anzeige(b, sicht, partner) {
+  let titel, f = farbe(b);
+  if (sicht === 'intern') titel = b.kunde ? `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}` : b.gast ? `${b.gast}${b.kn ? ' · ' + b.kn : ''}` : (b.grund || 'Blockiert');
+  else if (sicht === 'kunde') { if (b.kunde === S.kunde) titel = 'Ihre Buchung'; else { titel = 'Belegt'; f = 'belegt'; } }
+  else titel = b.partner === partner ? (b.grund || 'Eigennutzung') : b.status === 'geschlossen' ? 'Veranstaltung' : (b.status === 'blockiert' ? 'Blockiert' : 'CloudStudios-Buchung');
+  return { titel, f };
+}
+function planHTML(tag, { studios, sicht, partner }) {
+  const p = (h) => ((h - 8) / 16 * 100).toFixed(2) + '%';
+  const zeilen = studios.map((sid) => {
+    const st = ST[sid];
+    const bloecke = S.buchungen.filter((b) => aktiv(b) && b.studio === sid && b.tag === tag && !(b.status === 'angefragt' && b.reserviertBis < JETZT)).map((b) => {
+      let titel, f = farbe(b);
+      if (sicht === 'intern') titel = b.kunde ? `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}` : b.gast ? `${b.gast}${b.kn ? ' · ' + b.kn : ''}` : (b.grund || 'Blockiert');
+      else if (sicht === 'kunde') { if (b.kunde === S.kunde) titel = 'Ihre Buchung'; else { titel = 'Belegt'; f = 'belegt'; } }
+      else titel = b.partner === partner ? (b.grund || 'Eigennutzung') : b.status === 'geschlossen' ? 'Veranstaltung' : (b.status === 'blockiert' ? 'Blockiert' : 'CloudStudios-Buchung');
+      const zusatz = sicht === 'intern' && b.extras?.length ? ' · ' + b.extras.map((e) => e === 'u87' ? 'U87' : 'TLM 103').join(', ') : '';
+      return `<div class="block f-${f}" ${sicht === 'intern' ? `data-detail="${b.id}" role="button" tabindex="0" style="cursor:pointer;` : 'style="'}left:${p(Math.max(8, b.von))};width:calc(${((b.bis - Math.max(8, b.von)) / 16 * 100).toFixed(2)}% - 3px)" title="${esc(titel)}"><b>${esc(titel)}</b>${b.von}–${b.bis}${esc(zusatz)}</div>`;
+    }).join('');
+    const jetzt = tag === 0 ? `<div class="jetzt" style="left:${p(JETZT)}"></div>` : '';
+    return `<div class="planzeile"><div><div style="font-family:'Space Grotesk';font-weight:700">${st.name}</div><div class="hinweis">${st.sub}</div></div><div class="bahn">${bloecke}${jetzt}</div></div>`;
+  }).join('');
+  return `<div class="achse"><span>08</span><span>12</span><span>16</span><span>20</span><span>24</span></div><div class="plan" style="margin-top:6px">${zeilen}</div>`;
+}
+const KURZ = { s1: 'S1', s3: 'S3', s4: 'S4', s5: 'S5', lounge: 'LG' };
+const montagVon = (i) => { const wd = (datum(i).getUTCDay() + 6) % 7; return i - wd; };
+function kalenderHTML(k, { studios, sicht, partner, schmal }) {
+  const ansicht = S.ansicht[k], tag = S[k], attr = 'data-k' + k;
+  const p = (h) => ((h - 8) / 16 * 100).toFixed(2) + '%';
+  const sel = datum(tag), Y = sel.getUTCFullYear(), M = sel.getUTCMonth();
+  const tagesBuchungen = (i) => S.buchungen.filter((b) => aktiv(b) && b.tag === i && studios.includes(b.studio) && !(b.gruppe && b.studio === 's1' && studios.includes('lounge'))).sort((x, y) => x.von - y.von);
+  let zurueck, vor, titel, inhalt;
+  if (ansicht === 'tag') {
+    zurueck = tag - 1; vor = tag + 1; titel = TAGE[tag] + (tag === 0 ? ' · heute' : '');
+    inhalt = planHTML(tag, { studios, sicht, partner });
+  } else if (ansicht === 'woche') {
+    const mo = montagVon(tag); zurueck = mo - 7; vor = mo + 7;
+    const fd = (i) => { const d = datum(i); return String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.'; };
+    titel = 'Mo ' + fd(mo) + ' – So ' + fd(mo + 6);
+    const zeilen = Array.from({ length: 7 }, (_, j) => {
+      const i = mo + j, d = datum(i), vorbei = i < 0, ausser = i >= TAGE.length;
+      const bahnen = studios.map((sid) => {
+        const bl = vorbei || ausser ? '' : S.buchungen.filter((b) => aktiv(b) && b.tag === i && b.studio === sid).map((b) => { const a = anzeige(b, sicht, partner); return `<div class="block f-${a.f}" ${sicht === 'intern' ? `data-detail="${b.id}" role="button" tabindex="0" style="cursor:pointer;` : 'style="'}left:${p(Math.max(8, b.von))};width:calc(${((b.bis - Math.max(8, b.von)) / 16 * 100).toFixed(2)}% - 2px);top:1px;bottom:1px;padding:0 4px;font-size:10px;line-height:16px;border-left-width:2px" title="${esc(a.titel)} ${b.von}–${b.bis}">${schmal ? '' : esc(a.titel)}</div>`; }).join('');
+        return `<div style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:4px;align-items:center"><span class="mono" style="font-size:9px">${KURZ[sid]}</span><div class="bahn" style="height:20px;border-radius:5px">${bl}${i === 0 ? `<div class="jetzt" style="left:${p(JETZT)};top:-2px;bottom:-2px"></div>` : ''}</div></div>`;
+      }).join('');
+      const kopf = `${WT[d.getUTCDay()]} ${d.getUTCDate()}.${d.getUTCMonth() + 1}.`;
+      return `<div style="display:grid;grid-template-columns:${schmal ? '46px' : '70px'} minmax(0,1fr);gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);${vorbei ? 'opacity:.35' : ''}">
+        ${vorbei || ausser ? `<span>${kopf}</span>` : `<button ${attr}="${i}" data-zu="tag" style="min-height:44px;padding:0 6px;font-size:12px;${i === 0 ? 'border-color:var(--gelb);color:var(--gelb)' : ''}">${kopf}</button>`}
+        <div style="display:flex;flex-direction:column;gap:3px">${bahnen}</div></div>`;
+    }).join('');
+    inhalt = `<div class="achse" style="margin-left:${schmal ? 82 : 106}px"><span>08</span><span>12</span><span>16</span><span>20</span><span>24</span></div>${zeilen}`;
+  } else {
+    const erster = Date.UTC(Y, M, 1), tim = new Date(Date.UTC(Y, M + 1, 0)).getUTCDate();
+    const versatz = (new Date(erster).getUTCDay() + 6) % 7, idx0 = Math.round((erster - HEUTE) / 864e5);
+    zurueck = Math.round((Date.UTC(Y, M - 1, 1) - HEUTE) / 864e5); vor = Math.round((Date.UTC(Y, M + 1, 1) - HEUTE) / 864e5);
+    titel = MONATE[M] + ' ' + Y;
+    const kacheln = Array.from({ length: versatz }, () => '<div></div>');
+    for (let t = 1; t <= tim; t++) {
+      const i = idx0 + t - 1, vorbei = i < 0, ausser = i >= TAGE.length, liste = vorbei || ausser ? [] : tagesBuchungen(i);
+      const eintraege = schmal
+        ? `<span style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center">${liste.slice(0, 6).map((b) => `<i style="width:6px;height:6px;border-radius:50%;background:var(--${anzeige(b, sicht, partner).f === 'belegt' ? 'grau' : anzeige(b, sicht, partner).f})"></i>`).join('')}</span>`
+        : liste.slice(0, 3).map((b) => { const a = anzeige(b, sicht, partner); return `<span class="f-${a.f}" style="display:block;border-left:2px solid;border-radius:4px;padding:1px 4px;font-size:10px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left">${b.von} ${b.gruppe ? 'LG+S1' : KURZ[b.studio]} ${esc(a.titel)}</span>`; }).join('') + (liste.length > 3 ? `<span class="hinweis" style="font-size:10px">+${liste.length - 3} weitere</span>` : '');
+      const heute = i === 0;
+      kacheln.push(`<button ${vorbei || ausser ? 'disabled' : attr + '="' + i + '" data-zu="tag"'} style="min-height:${schmal ? 54 : 96}px;padding:4px;display:flex;flex-direction:column;gap:3px;align-items:stretch;justify-content:flex-start;border-radius:10px;${heute ? 'border-color:var(--gelb);box-shadow:inset 0 0 12px rgba(77,163,255,.2);' : ''}" aria-label="${t}. ${MONATE[M]}${heute ? ', heute' : ''}, ${liste.length} Termine">
+        <span style="display:flex;align-items:center;justify-content:${schmal ? 'center' : 'space-between'};gap:4px;font-weight:${heute ? 700 : 500};font-size:13px;${heute ? 'color:var(--gelb)' : ''}">${t}${heute ? '<i style="width:7px;height:7px;border-radius:50%;background:var(--gelb);box-shadow:0 0 6px var(--gelb)"></i>' : ''}</span>${eintraege}</button>`);
+    }
+    inhalt = `<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((w) => `<div class="mono" style="padding:2px 0">${w}</div>`).join('')}${kacheln.join('')}</div>`;
+  }
+  const z = Math.max(0, zurueck), v = Math.min(TAGE.length - 1, vor);
+  const keinZurueck = ansicht === 'tag' ? tag <= 0 : ansicht === 'woche' ? montagVon(tag) <= montagVon(0) : (Y === datum(0).getUTCFullYear() && M === datum(0).getUTCMonth());
+  return `<div class="zeile" style="flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    <div class="chips" role="group" aria-label="Ansicht">${[['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat']].map(([id, l]) => `<button class="${ansicht === id ? 'aktiv' : ''}" data-ansicht="${k}:${id}">${l}</button>`).join('')}</div>
+    <div class="chips" style="align-items:center"><button ${attr}="${z}" aria-label="Zurück" ${keinZurueck ? 'disabled' : ''}>‹</button>
+    <b style="font-family:'Space Grotesk';font-size:16px;min-width:${schmal ? 120 : 170}px;text-align:center">${esc(titel)}</b>
+    <button ${attr}="${v}" aria-label="Weiter" ${vor >= TAGE.length ? 'disabled' : ''}>›</button>
+    ${tag !== 0 ? `<button ${attr}="0">Heute</button>` : ''}</div></div>${inhalt}`;
+}
+const LEGENDE = `<div class="legende"><span><i style="background:var(--gruen)"></i>Anfrage</span><span><i style="background:var(--blau)"></i>Gebucht</span><span><i style="background:var(--lila)"></i>Mitglied</span><span><i style="background:var(--rot)"></i>Geschlossen</span><span><i style="background:var(--grau)"></i>Blockiert</span></div>`;
+
+function monatsZahlen() {
+  const tage = TAGE.length, monatEnde = Math.round((Date.UTC(datum(0).getUTCFullYear(), datum(0).getUTCMonth() + 1, 1) - HEUTE) / 864e5);
+  const imMonat = (b) => b.tag < monatEnde;
+  const gebucht = S.buchungen.filter((b) => imMonat(b) && (b.status === 'gebucht' || (b.status === 'storniert' && b.credits && !b.erstattet)));
+  const verfuegbar = monatEnde * 16;
+  const auslastung = ['s1', 's3', 's4', 's5'].map((sid) => ({ sid, std: gebucht.filter((b) => b.studio === sid).reduce((a, b) => a + (b.bis - b.von), 0) }));
+  const verkauft = S.posten.filter((p) => /Paket|Gutschein/.test(p.art)).reduce((a, p) => a + p.credits, 0);
+  const verbraucht = gebucht.reduce((a, b) => a + (b.credits || 0), 0);
+  const verfallen = S.posten.filter((p) => p.bisAbs < JETZT).reduce((a, p) => a + Math.max(0, postenRest(p)), 0);
+  const walkin = S.buchungen.filter((b) => b.status === 'gebucht' && b.preis && imMonat(b)).reduce((a, b) => a + b.preis, 0);
+  const waerme = Array.from({ length: 7 }, () => Array(16).fill(0));
+  for (const b of S.buchungen.filter((x) => aktiv(x) && x.studio !== 'lounge' && x.status !== 'blockiert')) {
+    const wd = (datum(b.tag).getUTCDay() + 6) % 7;
+    for (let h = Math.max(8, b.von); h < Math.min(24, b.bis); h++) waerme[wd][h - 8]++;
+  }
+  return { monatEnde, verfuegbar, auslastung, verkauft, verbraucht, verfallen, walkin, waerme };
+}
+function mehrInhalt() {
+  const t = S.mTab || 'kunden';
+  if (t === 'kunden') return `<div class="liste" style="margin-top:10px">${Object.entries(S.kunden).map(([k, v]) => `<button data-akte="${k}" class="karte zeile" style="text-align:left;padding:10px 12px"><span><b>${esc(v.name)}</b><br><span class="hinweis">${v.kn} · ${esc(kontoTyp(v))}${S.gesperrt.includes(k) ? ' · gesperrt' : ''}${noShows(k) ? ' · ' + noShows(k) + '× nicht erschienen' : ''}</span></span><b>${fmt(guthaben(k))} Cr</b></button>`).join('')}</div>`;
+  if (t === 'zahlen') {
+    const z = monatsZahlen(), max = Math.max(1, ...z.waerme.flat());
+    return `<div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">
+      ${[['CREDITS VERKAUFT', fmt(z.verkauft)], ['CREDITS VERBRAUCHT', fmt(z.verbraucht)], ['VERFALLEN', fmt(z.verfallen)], ['WALK-IN UMSATZ', eur(z.walkin)]].map(([l, v]) => `<div class="karte"><div class="mono">${l}</div><div class="zahl" style="font-size:22px">${v}</div></div>`).join('')}</div>
+      <div class="mono" style="margin-top:14px">AUSLASTUNG ${MONATE[datum(0).getUTCMonth()].toUpperCase()} (AB HEUTE, 8–24 UHR)</div>
+      <div class="karte liste" style="margin-top:6px;gap:10px">${z.auslastung.map((a) => { const pz = Math.round(a.std / z.verfuegbar * 100); return `<div><div class="zeile pruef"><span>${ST[a.sid].name}</span><b>${pz} % · ${a.std} Std.</b></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:4px"><div style="width:${Math.max(2, pz)}%;height:8px;border-radius:4px;background:var(--gelb);box-shadow:0 0 8px rgba(77,163,255,.6)"></div></div></div>`; }).join('')}</div>
+      <div class="mono" style="margin-top:14px">WANN IST WAS LOS? (WOCHENTAG × UHRZEIT)</div>
+      <div class="karte" style="margin-top:6px;padding:10px">
+        <div style="display:grid;grid-template-columns:24px repeat(16,minmax(0,1fr));gap:2px;font-size:9px;color:var(--leise)">
+          <span></span>${Array.from({ length: 16 }, (_, h) => `<span style="text-align:center">${h % 4 === 0 ? h + 8 : ''}</span>`).join('')}
+          ${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((w, i) => `<span>${w}</span>${z.waerme[i].map((v) => `<i title="${v}" style="height:14px;border-radius:3px;background:${v ? `rgba(77,163,255,${(0.2 + 0.8 * v / max).toFixed(2)})` : 'rgba(255,255,255,.05)'}"></i>`).join('')}`).join('')}
+        </div><div class="hinweis" style="margin-top:6px">Je heller, desto mehr gebucht. Leere Felder sind gute Zeiten für Aktionen.</div></div>
+      <button style="width:100%;margin-top:12px" data-export>Monat als Excel exportieren (für Thorben)</button><div id="export-msg" class="hinweis" aria-live="polite"></div>`;
+  }
+  if (t === 'codes') {
+    const tage = Array.from({ length: 14 }, (_, i) => i);
+    return `<div class="hinweis" style="margin-top:10px">Ein Code pro Tag, gilt den ganzen Tag. Kunden sehen ihn 24 Std. vor ihrer Session in der App.</div>
+    <div class="liste" style="margin-top:8px">${tage.map((i) => `<label class="karte zeile" style="padding:8px 12px;flex-direction:row;color:var(--ink);font-size:14px"><span style="min-width:96px">${TAGE[i]}${i === 0 ? ' · heute' : ''}</span><input data-code="${i}" value="${esc(S.codes[i] || '')}" inputmode="numeric" maxlength="8" placeholder="Code eintragen" style="flex:1;letter-spacing:.2em;${S.codes[i] ? '' : 'border-color:rgba(255,90,95,.5)'}"></label>`).join('')}</div>`;
+  }
+  if (t === 'raeume') return `<div class="hinweis" style="margin-top:10px">So sehen Kunden die Räume. Antippen für Ausstattung, Fotos und heutige Belegung.</div>${raumKarten()}`;
+  if (t === 'konten') return kontenHTML();
+  if (t === 'einstellungen') return einstellungenHTML();
+  if (t === 'mitteilungen') {
+    const n = S.brettZiel;
+    return `<div class="chips" style="margin-top:10px">${Object.entries(PARTNER).map(([id, P]) => `<button class="${n === id ? 'aktiv' : ''}" data-brettziel="${id}">${P.name}${S.brett.some((m) => m.partner === id && m.neu && m.von !== 'CloudStudios') ? ' •' : ''}</button>`).join('')}</div>
+    ${brettHTML(n, 'CloudStudios')}`;
+  }
+  if (t === 'abrechnung') return ['blackclouds', 'basement'].map((n) => `<div class="mono" style="margin-top:14px">ABRECHNUNG ${PARTNER[n].name.toUpperCase()}</div><div class="karte liste" style="margin-top:6px;gap:4px">${abrechnung(n).map((x) => `<div class="zeile pruef"><span>${esc(x.t)}</span><b style="white-space:nowrap">${eur(x.b)}</b></div>`).join('')}${S.geprueft[n] ? `<div class="hinweis" style="color:#7FE0AE">✓ Vom Partner geprüft (${esc(S.geprueft[n])})</div>` : '<div class="hinweis">Partner hat noch nicht bestätigt.</div>'}<div class="zeile" style="border-top:1px solid var(--rand);padding-top:6px"><b>Gutschrift</b><b style="color:var(--gelb)">${eur(abrechnung(n).reduce((a, x) => a + x.b, 0))}</b></div></div>`).join('');
+  return `<div class="karte pruef" style="margin-top:10px">${S.protokoll.slice(0, 30).map((x) => `<div style="padding:3px 0"><span class="mono">${esc(x.zeit)}</span> · ${esc(x.wer)}: ${esc(x.text)}</div>`).join('')}</div>`;
+}
+function einstellungenHTML() {
+  const e = S.eTab, E = S.einst;
+  const reiter = `<div class="chips" style="margin-top:12px">${[['studio5', 'Studio 5'], ['tarife', 'Tarife'], ['rechte', 'Rechte']].map(([id, l]) => `<button class="${e === id ? 'aktiv' : ''}" data-etab="${id}">${l}</button>`).join('')}</div>`;
+  if (e === 'studio5') return reiter + `<div class="hinweis" style="margin-top:10px">Kriterien für die Prüfliste, die BlackClouds bei jeder Bewerbung sieht. Entwurf, mit Andrews abstimmen.</div>
+    <div class="karte liste" style="margin-top:8px;gap:12px">
+      <label>Reichweite mindestens<select data-einst="minHoerer">${HOERER.map((h, i) => `<option value="${i}" ${i === E.minHoerer ? 'selected' : ''}>${h} Hörer/Monat</option>`).join('')}</select></label>
+      <label>Releases in 12 Monaten mindestens<select data-einst="minReleases">${RELEASES.map((h, i) => `<option value="${i}" ${i === E.minReleases ? 'selected' : ''}>${h}</option>`).join('')}</select></label>
+      <label style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" data-einstbox="ohneNoShow" ${E.ohneNoShow ? 'checked' : ''}> Keine nicht wahrgenommenen Termine</label>
+      <div class="hinweis">Immer dabei: professionelles Umfeld (Label, Management oder Team) und Zustimmung zu den Regeln. Die Entscheidung trifft BlackClouds, die Prüfliste hilft nur.</div></div>`;
+  if (e === 'tarife') return reiter + `<div class="mono" style="margin-top:12px">MITGLIEDSTARIFE</div>
+    <div class="liste" style="margin-top:6px;gap:6px">${Object.entries(TARIFE).map(([id, t]) => `<div class="karte zeile" style="padding:10px 12px"><span><b>${esc((id + ' ' + t.name).trim())}</b><br><span class="hinweis">${t.cr} Credits/Monat${t.nur ? ' · nur ' + t.nur.map((x) => ST[x].name).join(', ') : ''}${t.einladung ? ' · nur auf Einladung' : ''}</span></span></div>`).join('')}</div>
+    <div class="karte" style="margin-top:8px"><label>PA 220: höchstens so viele Credits pro Monat in Partnerstudios<input data-einst="partnerMax220" type="number" min="0" max="60" value="${E.partnerMax220}" inputmode="numeric" style="min-height:48px"></label><div class="hinweis">Vorschlag 30 von 60. Gilt für Basement Studio 3 und BlackClouds Studio 4 und 5.</div></div>
+    <div class="mono" style="margin-top:14px">BASEMENT-PAUSCHALEN</div>
+    <div class="liste" style="margin-top:6px;gap:6px">${PTYPEN.map((t) => `<div class="karte zeile" style="padding:10px 12px"><span><b>${esc(t.name)}</b><br><span class="hinweis">${t.cr} Std. · ${eur(t.brutto)} brutto · nur Studio 3 · 50/50 mit Basement</span></span></div>`).join('')}</div>
+    <div class="mono" style="margin-top:14px">NEUE PAUSCHALE ANLEGEN</div>
+    <form id="f-pauschale" class="karte liste" style="margin-top:6px;gap:10px">
+      <label>Art<select name="art"><option value="basement">Basement-Pauschale (nur Studio 3, 50/50)</option><option value="mitglied">Mitgliedstarif CloudStudios</option></select></label>
+      <label>Name<input name="name" placeholder="z. B. Basement 20" style="min-height:48px"></label>
+      <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr))"><label>Credits/Std. pro Monat<input name="cr" type="number" min="1" inputmode="numeric" style="min-height:48px"></label><label>Preis brutto (€)<input name="brutto" type="number" min="1" step="0.01" inputmode="decimal" style="min-height:48px"></label></div>
+      <div class="hinweis">Gültig in</div><div class="chips">${['s1', 's3', 's4', 's5'].map((x) => `<label style="flex-direction:row;align-items:center;gap:6px;font-size:14px;color:var(--ink)"><input type="checkbox" name="nur_${x}" ${x === 's3' ? 'checked' : ''}> ${ST[x].name}</label>`).join('')}</div>
+      <label style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" name="einladung"> Nur auf Einladung</label>
+      <button class="primaer" type="submit" style="min-height:52px">Pauschale anlegen</button></form><div id="f-pauschale-msg" class="hinweis" aria-live="polite"></div>`;
+  return reiter + `<div class="hinweis" style="margin-top:10px">Was jede Rolle darf. Antippen schaltet ein oder aus. Admin hat immer alles.</div>
+    ${Object.entries(ROLLEN).filter(([id]) => id !== 'admin').map(([id, r]) => `<div class="mono" style="margin-top:14px">${esc(r.name.toUpperCase())} · ${S.team.filter((m) => m.rolle === id).map((m) => esc(m.name)).join(', ') || 'niemand'}</div>
+      <div class="chips" style="margin-top:6px">${RECHTE.map(([rid, l]) => { const an = S.rechte[id].includes(rid); return `<button class="${an ? 'aktiv' : ''}" data-recht="${id}:${rid}" aria-pressed="${an}" style="font-size:13px">${an ? '✓ ' : ''}${l}</button>`; }).join('')}</div>`).join('')}`;
+}
+function kontoTyp(v) { return v.label ? 'Clouds Records · ' + v.label : v.mitglied ? (v.mitglied.startsWith('Basement') ? 'Basement-Pauschale' : 'Mitglied ' + v.mitglied) : 'Credit-Paket'; }
+function naechsteKN() { return 'KN - ' + String(Math.max(0, ...Object.values(S.kunden).map((v) => +((String(v.kn).match(/(\d+)/) || [0, 0])[1]))) + 1).padStart(3, '0'); }
+function kontenHTML() {
+  const a = S.kontoArt, ARTEN = [['paket', 'Credit-Paket'], ['mitglied', 'Mitglied'], ['basement', 'Basement-Pauschale'], ['label', 'Clouds Records'], ['partner', 'Partner-Zugang'], ['team', 'Team']];
+  const kunde = ['paket', 'mitglied', 'basement', 'label'].includes(a);
+  const feld = (l, n, typ = 'text', ph = '', extra = '') => `<label>${l}<input name="${n}" type="${typ}" placeholder="${ph}" ${extra} style="min-height:48px"></label>`;
+  let spezial = '';
+  if (a === 'paket') spezial = `<label>Paket<select name="paket">${[10, 20, 30, 40].map((n) => `<option value="${n}" ${n === 20 ? 'selected' : ''}>Paket ${n} · ${eur({ 10: 145, 20: 280, 30: 415, 40: 540 }[n])}</option>`).join('')}</select></label>${feld('Rechnungsnummer (bezahlt)', 'rn', 'text', 'RN-CS-…')}<div class="hinweis">Ohne Rechnungsnummer wird das Konto ohne Guthaben angelegt. Aufladen dann nach Zahlungseingang.</div>${feld('Willkommens-Credits (optional, nur Studio 1 und 3)', 'bonus', 'number', '0', 'min="0" max="10" inputmode="numeric"')}`;
+  if (a === 'mitglied') spezial = `<label>Tarif<select name="tarif">${Object.entries(TARIFE).map(([id, t]) => `<option value="${id}">${id} ${esc(t.name)} · ${t.cr} Credits/Monat${t.einladung ? ' · nur auf Einladung' : ''}${id === 'PA 220' ? ' · max. ' + S.einst.partnerMax220 + ' in Partnerstudios' : ''}</option>`).join('')}</select></label>${feld('Vertragsnummer', 'vn', 'text', 'VN-0…')}<label>Credits ab<select name="beginn"><option value="jetzt">sofort (diesen Monat)</option><option value="naechster">nächstem Monatsersten</option></select></label>`;
+  if (a === 'basement') spezial = `<label>Pauschale<select name="pauschale">${PTYPEN.map((t, i) => `<option value="${i}">${esc(t.name)} · ${t.cr} Std. · ${eur(t.brutto)} · nur Studio 3</option>`).join('')}</select></label>`;
+  if (a === 'label') spezial = `<label>Rolle<select name="lrolle"><option>Artist</option><option>Producer</option></select></label><div class="hinweis">Bekommt am Monatsersten 20 Label-Credits, nur Studio 1, gültig bis Monatsende.</div>`;
+  if (a === 'partner') spezial = `<label>Partner<select name="partner">${Object.entries(PARTNER).map(([id, P]) => `<option value="${id}">${P.name} (${P.studios.map((x) => ST[x].name).join(', ')})</option>`).join('')}</select></label><div class="hinweis">Sieht nur die eigenen Studios, Studio 1 und die Gemeinschaftsflächen. Keine Kundennamen.</div>`;
+  if (a === 'team') spezial = `<label>Rolle<select name="rolle" data-rollewahl>${Object.entries(ROLLEN).map(([id, r]) => `<option value="${id}" ${id === (S.rolleWahl || 'buchung') ? 'selected' : ''}>${r.name}</option>`).join('')}</select></label><div class="hinweis">Darf: ${esc(rechteText(S.rolleWahl || 'buchung'))} · änderbar unter Einstellungen</div>`;
+  const ein = S.einladung;
+  return `<div class="mono" style="margin-top:12px">NEUES KONTO ANLEGEN</div>
+  <div class="karte" style="margin-top:6px">
+    <div class="chips">${ARTEN.map(([id, l]) => `<button class="${a === id ? 'aktiv' : ''}" data-kontoart="${id}">${l}</button>`).join('')}</div>
+    <form id="f-konto" class="liste" style="margin-top:12px;gap:10px">
+      ${kunde ? `<label>Kundennummer (bestehende KN übernehmen)<input name="kn" value="${naechsteKN()}" autocomplete="off" style="min-height:48px"></label>` : ''}
+      ${feld('Vor- und Nachname', 'name', 'text', '', 'required autocomplete="off"')}
+      ${feld('E-Mail (für die Einladung)', 'mail', 'email', '', 'required autocomplete="off"')}
+      ${feld('Telefon', 'tel', 'tel', '+49 …')}
+      ${spezial}
+      ${kunde ? `<label style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" name="unterlagen"> Hausordnung und Datenschutz unterschrieben</label>
+      <label style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" name="s5"> Für Studio 5 freigegeben (mit Andrews abgestimmt)</label>
+      <label>Notiz (nur intern)<input name="notiz" style="min-height:48px"></label>` : ''}
+      <button class="primaer" type="submit" style="min-height:52px">Konto anlegen und Einladung senden</button>
+    </form><div id="f-konto-msg" class="hinweis" style="margin-top:8px" aria-live="polite"></div></div>
+  ${ein ? `<div class="karte ok" style="margin-top:10px"><b>Einladung an ${esc(ein.name)}</b><div class="hinweis" style="margin-top:4px">${esc(ein.mail)} bekommt einen Link, legt selbst ein Passwort fest und landet direkt in der ${esc(ein.ansicht)}. Im Prototyp wird nichts verschickt.</div><div class="mono" style="margin-top:6px">${esc(ein.link)}</div></div>` : ''}
+  <div class="mono" style="margin-top:16px">KUNDENKONTEN (${Object.keys(S.kunden).length})</div>
+  <div class="liste" style="margin-top:6px">${Object.entries(S.kunden).map(([k, v]) => `<div class="karte zeile" style="padding:10px 12px;${S.gesperrt.includes(k) ? 'opacity:.55' : ''}"><button data-akte="${k}" style="all:unset;cursor:pointer;flex:1"><b>${esc(v.name)}</b><br><span class="hinweis">${v.kn} · ${esc(kontoTyp(v))}${v.status !== 'Freigegeben' ? ' · Unterlagen offen' : ''}${S.s5frei.includes(k) ? ' · Studio 5' : ''}</span></button><button data-sperren="${k}">${S.gesperrt.includes(k) ? 'Entsperren' : 'Sperren'}</button></div>`).join('')}</div>
+  <div class="mono" style="margin-top:16px">PARTNER-ZUGÄNGE</div>
+  <div class="liste" style="margin-top:6px">${S.zugaenge.map((z) => `<div class="karte zeile" style="padding:10px 12px"><span><b>${esc(z.name)}</b><br><span class="hinweis">${esc(PARTNER[z.partner].name)} · ${esc(z.mail)}</span></span></div>`).join('')}</div>
+  <div class="mono" style="margin-top:16px">TEAM</div>
+  <div class="liste" style="margin-top:6px">${S.team.map((m) => `<div class="karte zeile" style="padding:10px 12px"><span><b>${esc(m.name)}</b><br><span class="hinweis">${esc(ROLLEN[m.rolle].name)} · ${esc(rechteText(m.rolle))}</span></span></div>`).join('')}</div>
+  <div class="hinweis" style="margin-top:8px">Konten anlegen und sperren darf nur die Rolle Admin. Jede Änderung steht im Protokoll.</div>`;
+}
+function noShows(k) { return S.buchungen.filter((b) => b.kunde === k && b.noShow).length; }
+function akteHTML() {
+  const k = S.akte, v = S.kunden[k]; if (!v) return '';
+  const kommend = S.buchungen.filter((b) => b.kunde === k && aktiv(b) && abs(b.tag, b.bis) > JETZT).sort((a, b) => abs(a.tag, a.von) - abs(b.tag, b.von));
+  const vergangen = S.buchungen.filter((b) => b.kunde === k && (abs(b.tag, b.bis) <= JETZT || b.status === 'storniert'));
+  const kaeufe = S.posten.filter((p) => p.kunde === k);
+  const telRoh = v.tel.replace(/\D/g, '');
+  return `<div style="position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center" data-aktezu>
+    <div class="karte" style="width:min(480px,100%);border-radius:28px 28px 0 0;padding:18px 18px calc(24px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto" role="dialog" aria-label="Kundenakte">
+      <div class="zeile"><div><div class="mono">KUNDENAKTE · ${v.kn}</div><h3 style="font-size:22px;margin-top:2px">${esc(v.name)}</h3></div><button data-aktezu aria-label="Schließen" style="width:44px;padding:0">✕</button></div>
+      <div class="chips" style="margin-top:8px"><span class="karte" style="padding:4px 10px;border-radius:999px;font-size:12px;${v.status === 'Freigegeben' ? 'color:#7FE0AE' : 'color:#FFB37A'}">${esc(v.status)}</span>${v.mitglied ? `<span class="karte" style="padding:4px 10px;border-radius:999px;font-size:12px;color:#E2D6FF">${esc(v.mitglied)}</span>` : ''}${S.s5frei.includes(k) ? '<span class="karte" style="padding:4px 10px;border-radius:999px;font-size:12px;color:#9CCBFF">Studio 5 freigegeben</span>' : ''}<span class="karte" style="padding:4px 10px;border-radius:999px;font-size:12px">Kunde seit ${esc(v.seit)}</span>${noShows(k) ? `<span class="karte" style="padding:4px 10px;border-radius:999px;font-size:12px;color:#FF8A8D">${noShows(k)}× nicht erschienen</span>` : ''}</div>
+      <div class="chips" style="margin-top:10px"><a href="tel:+${telRoh}" class="karte" style="padding:10px 14px;text-decoration:none;color:var(--ink);min-height:44px;display:flex;align-items:center">Anrufen</a><a href="https://wa.me/${telRoh}" class="karte" style="padding:10px 14px;text-decoration:none;color:var(--ink);min-height:44px;display:flex;align-items:center">WhatsApp</a><span class="hinweis" style="align-self:center">${esc(v.tel)}</span></div>
+      <div class="karte zeile" style="margin-top:12px"><span>Guthaben</span><b class="zahl" style="font-size:24px;color:var(--gelb)">${fmt(guthaben(k))}</b></div>
+      <div class="mono" style="margin-top:12px">CREDIT-POSTEN</div>
+      <div class="liste" style="margin-top:4px;gap:4px">${kaeufe.map((p) => `<div class="zeile pruef"><span>${esc(p.art)}${p.rn ? ' · ' + esc(p.rn) : ''}</span><span>${fmt(Math.max(0, postenRest(p)))} / ${fmt(p.credits)} · bis ${esc(p.bis)}</span></div>`).join('') || '<span class="hinweis">Keine.</span>'}</div>
+      <div class="mono" style="margin-top:12px">KOMMENDE TERMINE</div>
+      <div class="liste" style="margin-top:4px;gap:4px">${kommend.map((b) => `<div class="zeile pruef" data-detail="${b.id}" role="button" tabindex="0" style="cursor:pointer"><span>${TAGE[b.tag]} · ${b.von}–${b.bis} · ${ST[b.studio].name}</span><span>${fmt(b.credits)} Cr</span></div>`).join('') || '<span class="hinweis">Keine.</span>'}</div>
+      <div class="mono" style="margin-top:12px">VERGANGEN UND STORNIERT</div>
+      <div class="liste" style="margin-top:4px;gap:4px">${vergangen.map((b) => `<div class="zeile pruef" style="opacity:.8"><span>${TAGE[b.tag]} · ${ST[b.studio].name}</span><span>${b.status === 'storniert' ? 'storniert' : b.noShow ? 'nicht erschienen' : 'erledigt'}</span></div>`).join('') || '<span class="hinweis">Noch nichts.</span>'}</div>
+      <label style="margin-top:12px">Notizen (nur intern)<textarea data-notiz="${k}" rows="3" style="border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);padding:10px;font-size:15px;color:var(--ink);font-family:inherit">${esc(v.notiz)}</textarea></label>
+    </div></div>`;
+}
+function intern() {
+  const offeneCredits = Object.keys(S.kunden).reduce((a, k) => a + guthaben(k), 0);
+  const offen = S.anfragen.filter((a) => a.status === 'offen');
+  const walkins = S.buchungen.filter((b) => b.status === 'angefragt' && b.reserviertBis >= JETZT);
+  const zuBest = offen.length + walkins.length;
+  const ablauf = Object.entries(S.kunden).map(([k, v]) => ({ k, v, p: S.posten.filter((p) => p.kunde === k && p.bisAbs < abs(21, 0) && postenRest(p) > 0) })).filter((x) => x.p.length);
+  const heuteListe = S.buchungen.filter((b) => aktiv(b) && b.tag === 0 && !(b.gruppe && b.studio === 's1')).sort((x, y) => x.von - y.von);
+  const terminZeile = (b, mitAktionen) => {
+    const wer = b.kunde ? `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}` : b.gast ? `${b.gast}${b.kn ? ' · ' + b.kn : ''}` : (b.grund || 'Blockiert');
+    const raum = b.gruppe ? 'Lounge + Studio 1' : ST[b.studio].name;
+    const frist = abs(b.tag, b.von) - JETZT > 24, laeuft = b.tag === 0 && b.von <= JETZT && b.bis > JETZT, vorbei = abs(b.tag, b.bis) <= JETZT;
+    const info = b.credits ? `${fmt(b.credits)} Credits${mitAktionen ? ' · ' + (frist ? 'Storno mit Rückgabe' : 'Storno ohne Rückgabe') : ''}` : b.status === 'angefragt' ? 'Anfrage, noch nicht bezahlt' : b.status === 'gebucht' ? 'Walk-In bezahlt' : b.status === 'geschlossen' ? 'Veranstaltung' : 'Blockierung';
+    return `<div class="karte zeile" style="padding:10px 12px;flex-wrap:wrap;${vorbei ? 'opacity:.5' : ''}"><div style="display:flex;gap:10px;align-items:center"><i style="width:10px;height:10px;border-radius:50%;background:var(--${farbe(b)});box-shadow:0 0 8px var(--${farbe(b)});flex:none"></i><div data-detail="${b.id}" role="button" tabindex="0" style="cursor:pointer"><b>${b.von}–${b.bis} · ${esc(raum)}</b>${laeuft ? ' <span class="mono" style="color:var(--gelb)">LÄUFT</span>' : ''}<div class="hinweis">${esc(wer)} · ${esc(info)}</div></div></div>
+      ${mitAktionen && !vorbei ? `<div class="chips"><button data-istorno="${b.id}">Stornieren</button>${b.credits && !frist ? `<button data-kulanz="${b.id}">Kulanz</button>` : ''}</div>` : ''}</div>`;
+  };
+  const kopf = (titel, unter) => `<div style="padding-right:56px"><div class="logo" style="font-size:15px;margin-bottom:6px">CLOUD<svg width="13" height="18" viewBox="0 0 22 30" aria-hidden="true"><path d="M13 1L2 17h7l-2 12L20 12h-7l3-11z" fill="#F4C430"/></svg><span style="color:#9CCBFF">STUDIOS</span></div><div class="mono">${unter}</div><h2 style="font-size:26px;margin-top:4px">${titel}</h2></div>`;
+  let inhalt = '';
+  if (S.iTab === 'dashboard') {
+    const gutBC = abrechnung('blackclouds').reduce((a, x) => a + x.b, 0), gutBS = abrechnung('basement').reduce((a, x) => a + x.b, 0);
+    const naechste = heuteListe.filter((b) => b.bis > JETZT);
+    const neu = S.meldungen.filter((m) => m.neu);
+    let codeTage = 0; while (S.codes[codeTage]) codeTage++;
+    const q = S.suche.trim().toLowerCase(), treffer = q ? Object.entries(S.kunden).filter(([, v]) => (v.name + ' ' + v.kn).toLowerCase().includes(q)) : [];
+    inhalt = kopf('Guten Tag, Cem', `COCKPIT · ADMIN · ${TAGE[0].toUpperCase()} ${UHR}`) + `
+    <label style="margin-top:12px">Kunde suchen<input data-suche value="${esc(S.suche)}" placeholder="Name oder KN-0xx" autocomplete="off" enterkeyhint="search"></label>
+    ${q ? `<div class="liste" style="margin-top:6px">${treffer.map(([k, v]) => `<button data-akte="${k}" class="karte zeile" style="text-align:left;padding:10px 12px"><span><b>${esc(v.name)}</b><br><span class="hinweis">${v.kn}${v.mitglied ? ' · ' + esc(v.mitglied) : ''}</span></span><b>${fmt(guthaben(k))} Cr</b></button>`).join('') || '<div class="hinweis">Kein Kunde gefunden.</div>'}</div>` : ''}
+    ${codeTage < 4 ? `<button data-itab="mehr" data-anker="codes" class="karte" style="margin-top:12px;display:block;width:100%;text-align:left;border-color:rgba(255,90,95,.5);background:rgba(255,90,95,.1)"><b>Türcodes nur noch für ${codeTage} ${codeTage === 1 ? 'Tag' : 'Tage'} hinterlegt</b><br><span class="hinweis">Jetzt die nächsten WeLock-Codes eintragen</span></button>` : ''}` + (neu.length ? `
+    <div class="mono" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center"><span>NEU FÜR DICH · ${neu.length}</span><button data-gelesen style="min-height:36px;font-size:12px">Alle gelesen</button></div>
+    <div class="liste" style="margin-top:6px">${neu.map((m) => `<div class="karte" style="padding:10px 12px;border-color:rgba(77,163,255,.45)"><div class="zeile"><b style="font-size:14px">${esc(m.titel)}</b><span class="mono">${esc(m.zeit)}</span></div><div class="hinweis" style="margin-top:2px">${esc(m.text)}</div></div>`).join('')}</div>` : '') + `
+    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:14px">
+      <button data-itab="anfragen" class="karte" style="text-align:left;display:block;padding:14px"><div class="mono">ZU BESTÄTIGEN</div><div class="zahl" style="color:var(--gruen)">${zuBest}</div><div class="hinweis">antippen zum Öffnen</div></button>
+      <button data-itab="kalender" class="karte" style="text-align:left;display:block;padding:14px"><div class="mono">TERMINE HEUTE</div><div class="zahl">${heuteListe.filter((b) => b.status !== 'blockiert').length}</div><div class="hinweis">alle Räume</div></button>
+      <div class="karte"><div class="mono">OFFENE CREDITS</div><div class="zahl" style="color:var(--gelb)">${fmt(offeneCredits)}</div><div class="hinweis">bezahlt, nicht genutzt</div></div>
+      <div class="karte"><div class="mono">TÜRCODE HEUTE</div><div class="zahl" style="letter-spacing:.15em">${S.codes[0] || '—'}</div><div class="hinweis">WeLock</div></div>
+    </div>
+    <div class="mono" style="margin-top:16px">SCHNELL EINTRAGEN</div>
+    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:6px">
+      ${[['walkin', 'Walk-In-Anfrage'], ['credits', 'Buchung für Kunden'], ['event', 'Veranstaltung'], ['block', 'Slot blockieren']].map(([a2, l]) => `<button data-schnell="${a2}" style="min-height:52px">${l}</button>`).join('')}
+    </div>
+    <div class="mono" style="margin-top:16px">HEUTE NOCH</div>
+    <div class="liste" style="margin-top:6px">${naechste.map((b) => terminZeile(b, false)).join('') || '<div class="hinweis">Heute steht nichts mehr an.</div>'}</div>
+    <div class="mono" style="margin-top:16px">PARTNER-GUTSCHRIFT NOVEMBER (LIVE)</div>
+    <div class="karte liste" style="margin-top:6px;gap:6px"><div class="zeile"><span>BlackClouds</span><b>${eur(gutBC)}</b></div><div class="zeile"><span>Basement Studios</span><b>${eur(gutBS)}</b></div></div>
+    <div class="mono" style="margin-top:16px">CREDITS LAUFEN BALD AB</div>
+    <div class="karte pruef" style="margin-top:6px">${ablauf.map((x) => `<div class="zeile"><span>${esc(x.v.name)} · ${x.p.map((p) => esc(p.art)).join(', ')}</span><b>${fmt(x.p.reduce((a, p) => a + postenRest(p), 0))}</b></div>`).join('') || 'Keine.'}</div>`;
+  } else if (S.iTab === 'kalender') {
+    inhalt = kopf('Kalender', 'BELEGUNG ALLER RÄUME') + `<div class="karte" style="margin-top:12px;padding:12px">${kalenderHTML('tag', { studios: ['s1', 's3', 's4', 's5', 'lounge'], sicht: 'intern' })}</div>
+    <div style="margin-top:8px">${LEGENDE}</div>
+    <div class="chips" role="group" aria-label="Liste" style="margin-top:14px"><button class="${S.iKal === 'aktiv' ? 'aktiv' : ''}" data-ikal="aktiv">Termine am ${TAGE[S.tag]}</button><button class="${S.iKal === 'storniert' ? 'aktiv' : ''}" data-ikal="storniert">Storniert (${S.buchungen.filter((b) => b.status === 'storniert' && !(b.gruppe && b.studio === 's1')).length})</button></div>
+    ${S.iKal === 'aktiv' ? `<div class="liste" style="margin-top:8px">${S.buchungen.filter((b) => aktiv(b) && b.tag === S.tag && !(b.gruppe && b.studio === 's1')).sort((x, y) => x.von - y.von).map((b) => terminZeile(b, true)).join('') || '<span class="hinweis">Keine Termine.</span>'}</div>`
+    : `<div class="liste" style="margin-top:8px">${S.buchungen.filter((b) => b.status === 'storniert' && !(b.gruppe && b.studio === 's1')).sort((x, y) => abs(x.tag, x.von) - abs(y.tag, y.von)).map((b) => {
+        const wer = b.kunde ? `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}` : b.gast ? `${b.gast}${b.kn ? ' · ' + b.kn : ''}` : (b.grund || 'Blockierung');
+        const ergebnis = b.credits ? (b.erstattet ? `${fmt(b.credits)} Credits zurück` : `${fmt(b.credits)} Credits einbehalten`) : b.preis ? 'ggf. Erstattung per Überweisung' : 'Slot freigegeben';
+        return `<div class="karte" style="padding:10px 12px;opacity:.9"><div class="zeile"><b style="text-decoration:line-through;text-decoration-color:rgba(255,90,95,.7)">${TAGE[b.tag]} · ${b.von}–${b.bis} · ${esc(b.gruppe ? 'Lounge + Studio 1' : ST[b.studio].name)}</b></div><div class="hinweis">${esc(wer)}</div><div class="hinweis" style="margin-top:2px">Storniert von <b style="color:var(--ink)">${esc(b.stornoVon || '—')}</b>${b.stornoAm ? ' um ' + esc(b.stornoAm) : ''} · <span style="color:${b.erstattet ? 'var(--gruen)' : 'var(--leise)'}">${esc(ergebnis)}</span></div></div>`;
+      }).join('') || '<span class="hinweis">Noch keine Stornos.</span>'}</div>`}`;
+  } else if (S.iTab === 'eintragen') {
+    const art = S.iArt || 'walkin';
+    inhalt = kopf('Eintragen', 'ANFRAGE, BUCHUNG, BLOCKIERUNG, VERANSTALTUNG') + `
+    <div class="chips" style="margin-top:12px">${[['walkin', 'Walk-In'], ['credits', 'Für Kunden'], ['event', 'Veranstaltung'], ['block', 'Blockieren']].map(([a2, l]) => `<button class="${art === a2 ? 'aktiv' : ''}" data-iart="${a2}">${l}</button>`).join('')}</div>
+    <form id="f-intern" class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px;align-items:end">
+      <input type="hidden" name="art" value="${art}">
+      ${art !== 'event' ? `<label>Raum<select name="studio">${STUDIOS.filter((x) => x.id !== 'lounge').map((x) => `<option value="${x.id}">${x.name}</option>`).join('')}</select></label>` : '<input type="hidden" name="studio" value="s1">'}
+      <label>Tag<select name="tag">${TAGE.map((t, i) => `<option value="${i}" ${i === S.tag ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label>Beginn<select name="start">${Array.from({ length: 15 }, (_, i) => i + 8).map((h) => `<option ${h === 14 ? 'selected' : ''}>${h}</option>`).join('')}</select></label>
+      <label>Stunden<input name="std" type="number" min="1" max="16" value="4"></label>${art === 'walkin' ? '<label>Preis brutto (€)<input name="preis" type="number" step="0.01" min="0" inputmode="decimal" placeholder="lt. Preisliste"></label><label>Angebot (AN-CS-…)<input name="angebot" placeholder="optional"></label>' : ''}
+      ${art === 'credits' ? `<label style="grid-column:1/-1">Kunde<select name="kunde">${Object.entries(S.kunden).map(([k, v]) => `<option value="${k}">${v.name} · ${v.kn} · ${fmt(guthaben(k))} Credits</option>`).join('')}</select></label>` : `${art === 'walkin' ? '<label style="grid-column:1/-1">Kundennummer (falls vorhanden)<input name="kn" placeholder="KN-0xx" autocomplete="off"></label>' : ''}<label style="grid-column:1/-1">${art === 'walkin' ? 'Name' : art === 'event' ? 'Veranstaltung / Kunde' : 'Grund'}<input name="name" placeholder="${art === 'walkin' ? 'z. B. Walk-In Kai' : art === 'event' ? 'z. B. Release Party KN-104' : 'z. B. Reinigung'}" autocomplete="off"></label>`}
+      <button class="primaer" type="submit" style="grid-column:1/-1;min-height:52px">${art === 'walkin' ? 'Anfrage eintragen (grün)' : art === 'credits' ? 'Buchen und Credits abziehen' : art === 'event' ? 'Lounge + Studio 1 sperren (rot)' : 'Blockieren (grau)'}</button>
+    </form>
+    <div id="f-intern-msg" class="hinweis" style="margin-top:8px" aria-live="polite"></div>`;
+  } else if (S.iTab === 'anfragen') {
+    inhalt = kopf('Zu bestätigen', `${zuBest} OFFEN`) + `<div class="liste" style="margin-top:12px">
+      ${walkins.map((b) => `<div class="karte ok"><div class="zeile mono" style="color:#7FE0AE"><span>${esc(b.angebot || 'WALK-IN')}</span><span>verfällt ${b.reserviertBis - JETZT < 24 ? 'in ' + Math.round(b.reserviertBis - JETZT) + ' Std.' : TAGE[Math.floor(b.reserviertBis / 24)]}</span></div><div style="font-weight:600;margin-top:4px">${esc(b.gast)} · ${b.bis - b.von} Std.</div><div class="hinweis">${ST[b.studio].name} · ${TAGE[b.tag]} ${b.von}:00 · ${eur(b.preis || 0)}</div><button class="primaer" style="width:100%;margin-top:8px" data-zahlung="${b.id}">Zahlung bestätigen</button></div>`).join('')}
+      ${offen.map((a2) => a2.art === 'zustand' ? zustandKarte(a2) : `<div class="karte" style="border-color:rgba(77,163,255,.35)"><div class="zeile mono" style="color:var(--gelb)"><span>${a2.art === 'bestellung' ? 'SHOP-BESTELLUNG' : a2.art === 'paket' ? 'PAKET-ANFRAGE' : a2.art === 's5' ? 'STUDIO 5' : a2.art === 'event' ? 'VERANSTALTUNG' : 'PROBLEM'}</span><span>${S.kunden[a2.kunde].kn}</span></div><div style="font-weight:600;margin-top:4px">${esc(S.kunden[a2.kunde].name)}: ${esc(a2.text)}</div>
+        <div class="chips" style="margin-top:8px">${a2.art === 'bestellung' ? `<button data-bestellok="${a2.id}" class="primaer">Bezahlt · ausführen</button>` : a2.art === 'event' ? `<button data-eventok="${a2.id}" class="primaer">Angebot raus · eintragen</button><button data-ablehnen="${a2.id}">Ablehnen</button>` : a2.art === 'paket' ? `<button data-aufladen="${a2.id}" class="primaer">Bezahlt · ${a2.menge} aufladen</button>` : a2.art === 's5' ? (a2.partnerEntscheid === 'ja' ? `<span class="hinweis" style="align-self:center;color:#7FE0AE">BlackClouds hat zugesagt</span><button data-s5="${a2.id}" class="primaer">Eintragen</button>` : `<span class="hinweis" style="align-self:center">Wartet auf BlackClouds</span><button data-ablehnen="${a2.id}">Ablehnen</button>`) : `<button data-erledigt="${a2.id}">Erledigt</button>`}</div></div>`).join('')}
+      ${zuBest ? '' : '<div class="karte hinweis">Alles erledigt.</div>'}</div>`;
+  } else {
+    const p = (n) => abrechnung(n);
+    inhalt = kopf('Mehr', 'KUNDEN, ZAHLEN, CODES, ABRECHNUNG') + `
+    <div class="chips" style="margin-top:12px">${[['kunden', 'Kunden'], ['raeume', 'Räume'], ['konten', 'Konten'], ['zahlen', 'Monatszahlen'], ['codes', 'Türcodes'], ['abrechnung', 'Abrechnung'], ['einstellungen', 'Einstellungen'], ['mitteilungen', 'Mitteilungen' + (S.brett.some((m) => m.neu && m.von !== 'CloudStudios') ? ' •' : '')], ['protokoll', 'Protokoll']].map(([id, l]) => `<button class="${(S.mTab || 'kunden') === id ? 'aktiv' : ''}" data-mtab="${id}">${l}</button>`).join('')}</div>
+    ${mehrInhalt()}
+    `;
+  }
+  if (S.iRaum) inhalt = raumSeite(S.iRaum, 'intern');
+  const NAV = [
+    ['dashboard', 'Dashboard', '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'],
+    ['kalender', 'Kalender', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
+    ['eintragen', 'Eintragen', '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'],
+    ['anfragen', 'Anfragen', '<path d="M4 4h16v12H8l-4 4z"/>'],
+    ['mehr', 'Mehr', '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>']
+  ];
+  const det = S.detail && S.buchungen.find((x) => x.id === S.detail);
+  const detailHTML = det ? (() => {
+    const k = det.kunde && S.kunden[det.kunde];
+    const zeilen = [
+      ['Kunde', k ? k.name : det.gast || '—'], ['Kundennummer', k ? k.kn : det.kn || '—'], ['Art', k ? (k.mitglied ? 'Mitglied · ' + k.mitglied : 'Credit-Kunde') : det.gast ? 'Walk-In' : det.status === 'geschlossen' ? 'Veranstaltung' : 'Blockierung'],
+      ['Raum', det.gruppe ? 'Lounge + Studio 1' : ST[det.studio].name], ['Zeit', `${TAGE[det.tag]} · ${det.von}–${det.bis} Uhr`],
+      ['Status', det.status === 'angefragt' ? 'Anfrage, noch nicht bezahlt' : det.status === 'gebucht' ? 'gebucht' : det.status === 'geschlossen' ? 'geschlossene Gesellschaft' : 'blockiert'],
+      ...(det.credits ? [['Credits', fmt(det.credits)]] : []), ...(det.preis ? [['Preis', eur(det.preis)]] : []),
+      ...(det.extras?.length ? [['Extras', det.extras.map((e) => EXTRAS[e].name).join(', ')]] : []),
+      ...(det.angebot ? [['Angebot', det.angebot]] : []), ...(det.rechnung ? [['Rechnung', det.rechnung]] : []),
+      ...(det.grund && !det.gast ? [['Grund', det.grund]] : []), ...(k ? [['Guthaben', fmt(guthaben(det.kunde)) + ' Credits']] : [])
+    ];
+    const vorbei = abs(det.tag, det.bis) <= JETZT, begonnen = abs(det.tag, det.von) <= JETZT;
+    return `<div style="position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center" data-detailzu>
+      <div class="karte" style="width:min(480px,100%);border-radius:28px 28px 0 0;padding:18px 18px calc(24px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto" role="dialog" aria-label="Termin-Details">
+        <div class="zeile"><div style="display:flex;gap:8px;align-items:center"><i style="width:12px;height:12px;border-radius:50%;background:var(--${farbe(det)})"></i><h3 style="font-size:20px">Termin</h3></div><button data-detailzu aria-label="Schließen" style="width:44px;padding:0">✕</button></div>
+        <div style="margin-top:10px">${zeilen.map(([l, v], i) => `<div class="zeile pruef" style="padding:8px 0;${i ? 'border-top:1px solid rgba(255,255,255,.08)' : ''}"><span class="hinweis" style="font-size:13px">${l}</span><b style="text-align:right">${esc(v)}</b></div>`).join('')}</div>
+        ${begonnen && !vorbei ? '<div class="hinweis" style="margin-top:10px;color:var(--gelb)">Läuft gerade.</div>' : ''}${!begonnen ? `<div class="chips" style="margin-top:12px">${det.status === 'angefragt' ? `<button class="primaer" data-zahlung="${det.id}">Zahlung bestätigen</button>` : ''}<button data-istorno="${det.id}">Stornieren</button>${det.credits && abs(det.tag, det.von) - JETZT <= 24 ? `<button data-kulanz="${det.id}">Kulanz</button>` : ''}</div>` : vorbei ? `<div class="chips" style="margin-top:12px"><span class="hinweis" style="align-self:center">Termin ist vorbei.</span>${det.kunde || det.gast ? `<button data-noshow="${det.id}" class="${det.noShow ? 'aktiv' : ''}">${det.noShow ? 'Als nicht erschienen markiert' : 'Nicht erschienen'}</button>` : ''}</div>` : ''}
+      </div></div>`;
+  })() : '';
+  const pushIntern = S.iPush ? `<div class="toast" role="status"><b>Cockpit</b><br>${esc(S.iPush)}</div>` : '';
+  return `${detailHTML}${S.akte && !S.detail ? akteHTML() : ''}<div class="handy">${pushIntern}<div style="flex:1">${inhalt}</div>
+  <nav class="handynav">${NAV.map(([id, l, ikon]) => `<button class="${S.iTab === id ? 'aktiv' : ''}" data-itab="${id}" aria-current="${S.iTab === id ? 'page' : 'false'}" style="position:relative"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ikon}</svg>${l}${id === 'anfragen' && zuBest ? `<span style="position:absolute;top:2px;right:14px;min-width:18px;height:18px;border-radius:9px;background:var(--rot);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px">${zuBest}</span>` : ''}</button>`).join('')}</nav></div>`;
+}
+function eventPreis(e, mitglied) {
+  const E = EVENTS[e.art];
+  const gaeste = Math.min(e.gaeste, e.art === 'camp' ? E.studios[e.camp][2] : E.max);
+  const posten = [[`${E.name} · ${E.std} Std.`, E.preis]];
+  if (e.plus && E.plusStd) posten.push([`+${e.plus} Std. Verlängerung`, e.plus * E.plusStd]);
+  if (e.art === 'camp' && e.camp) posten.push([E.studios[e.camp][0], E.studios[e.camp][1]]);
+  const [gName, gPreis] = E.getraenke[e.getraenk] || E.getraenke[0];
+  if (gPreis) posten.push([`Getränke ${gName} · ${gaeste} × ${gPreis} €`, gaeste * gPreis]);
+  if (e.art === 'release' && e.snacks) posten.push([`Snacks · ${gaeste} × ${E.snacks} €`, gaeste * E.snacks]);
+  const summe = posten.reduce((a, p) => a + p[1], 0);
+  const rabatt = mitglied ? Math.round(summe * 0.15 * 100) / 100 : 0;
+  return { posten, summe, rabatt, gesamt: summe - rabatt, gaeste, dauer: E.std + (E.plusStd ? e.plus : 0) };
+}
+function eventFormHTML(k) {
+  const e = S.eform, E = EVENTS[e.art], tag = S.form.tag, mitglied = !!k.mitglied;
+  const p = eventPreis(e, mitglied), ende = e.start + p.dauer;
+  const konflikt = ende > 24 ? 'Die Veranstaltung muss bis 24:00 enden.' : (belegt('lounge', tag, e.start, ende) || belegt('s1', tag, e.start, ende)) ? 'Lounge oder Studio 1 sind in dieser Zeit schon belegt.' : (e.art === 'camp' && e.camp && (belegt('s3', tag, e.start, ende) || (e.camp === 2 && belegt('s4', tag, e.start, ende)))) ? 'Ein zugebuchtes Studio ist in dieser Zeit schon belegt.' : abs(tag, e.start) < JETZT ? 'Dieser Zeitpunkt liegt in der Vergangenheit.' : null;
+  const maxG = e.art === 'camp' ? E.studios[e.camp][2] : E.max;
+  return `<h2 style="font-size:22px">Veranstaltung anfragen</h2><div class="hinweis">Lounge und Studio 1 gehören an diesem Abend nur Ihnen. Wir prüfen und melden uns mit einem Angebot.</div>
+  <div class="raster" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px">${Object.entries(EVENTS).map(([id, x]) => `<button class="${e.art === id ? 'aktiv' : ''}" data-eart="${id}" style="min-height:64px;padding:6px;line-height:1.2"><b style="font-size:13px">${x.name}</b><br><span style="font-size:11px">${x.std} Std. · ${x.preis} €</span></button>`).join('')}</div>
+  <div class="karte" style="margin-top:10px;padding:10px">${kalenderHTML('ftag', { studios: ['lounge', 's1'], sicht: 'kunde', schmal: true })}</div>
+  <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">
+    <label>Beginn<select data-estart>${Array.from({ length: 16 }, (_, i) => i + 8).map((h) => `<option ${h === e.start ? 'selected' : ''}>${h}</option>`).join('')}</select></label>
+    <label>Gäste (max. ${maxG})<input data-egaeste type="number" min="1" max="${maxG}" value="${Math.min(e.gaeste, maxG)}"></label>
+    ${E.plusStd ? `<label>Verlängerung<select data-eplus>${[0, 1, 2, 3].map((h) => `<option value="${h}" ${h === e.plus ? 'selected' : ''}>${h ? '+' + h + ' Std. (' + h * E.plusStd + ' €)' : 'keine'}</option>`).join('')}</select></label>` : ''}
+    ${e.art === 'camp' ? `<label>Studios<select data-ecamp>${E.studios.map(([n, pr, m], i) => `<option value="${i}" ${i === e.camp ? 'selected' : ''}>${n}${pr ? ' +' + pr + ' €' : ''} · bis ${m} Pers.</option>`).join('')}</select></label>` : ''}
+  </div>
+  <div class="mono" style="margin-top:12px">GETRÄNKE PRO PERSON</div>
+  <div class="chips" style="margin-top:6px">${E.getraenke.map(([n, pr], i) => `<button class="${e.getraenk === i ? 'aktiv' : ''}" data-egetraenk="${i}">${n}${pr ? ' · ' + pr + ' €' : ''}</button>`).join('')}</div>
+  ${e.art === 'release' ? `<div class="chips" style="margin-top:6px"><button class="${e.snacks ? 'aktiv' : ''}" data-esnacks>Snacks · 5 € p. P.</button></div>` : E.inkl ? `<div class="hinweis" style="margin-top:6px">${E.inkl}</div>` : ''}
+  <label style="margin-top:10px">Worum geht es? (optional)<input data-enotiz value="${esc(e.notiz)}" placeholder="z. B. Release meiner EP"></label>
+  <div class="karte liste" style="margin-top:12px;background:rgba(77,163,255,.07);border-color:rgba(77,163,255,.3);gap:4px">
+    ${p.posten.map(([n, b]) => `<div class="zeile pruef"><span>${esc(n)}</span><span style="white-space:nowrap">${eur(b)}</span></div>`).join('')}
+    ${p.rabatt ? `<div class="zeile pruef" style="color:#7FE0AE"><span>Mitgliederrabatt 15 %</span><span style="white-space:nowrap">−${eur(p.rabatt)}</span></div>` : ''}
+    <div class="zeile" style="border-top:1px solid var(--rand);padding-top:6px"><b>Voraussichtlich</b><b style="color:var(--gelb);white-space:nowrap">${eur(p.gesamt)}</b></div>
+    <div class="hinweis">${TAGE[tag]}, ${e.start}–${ende} Uhr · Reinigung inklusive${E.kaution ? ' · Kaution ' + E.kaution + ' €' : ''} · unverbindlich, das Angebot folgt.</div>
+  </div>
+  ${konflikt ? `<div class="karte fehler" style="margin-top:10px">${konflikt}</div>` : ''}
+  <button class="primaer" style="width:100%;margin-top:10px;min-height:52px" data-eanfrage ${konflikt ? 'disabled' : ''}>Anfrage senden</button>`;
+}
+function raumKarten() { return `<div style="display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 2px 8px;margin:0 -2px">${RAEUME.map((r) => `<button data-raum="${r.id}" style="flex:none;width:200px;scroll-snap-align:start;padding:0;border-radius:20px;overflow:hidden;text-align:left;display:block">
+      ${r.fotos ? `<img src="bilder/${r.fotos[0][0]}.jpg" alt="" loading="lazy" style="display:block;width:100%;height:110px;object-fit:cover">` : `<div style="height:110px;background:linear-gradient(160deg,rgba(77,163,255,.28),rgba(255,255,255,.03));display:flex;align-items:flex-end;padding:8px"><span class="mono" style="font-size:10px;color:#C9DBF2">FOTO FOLGT</span></div>`}
+      <div style="padding:10px 12px"><b style="display:block;font-family:'Space Grotesk';font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</b><span style="display:block;font-size:11px;color:var(--leise);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.preis)} · ${esc(r.personen)} Pers.</span></div></button>`).join('')}</div>`; }
+function raumSeite(id, modus) {
+  const r = RAUM[id];
+  let fuss = '';
+  if (modus === 'kunde') fuss = `<button class="primaer" style="width:100%;margin-top:14px;min-height:52px" data-raumbuchen="${r.id}">${r.id === 'lounge' ? 'Veranstaltung anfragen' : r.id === 's5' ? 'BlackClouds Studio 5 anfragen' : esc(r.name) + ' buchen'}</button>`;
+  else if (modus === 'intern') {
+    const heute = S.buchungen.filter((b) => aktiv(b) && b.studio === r.id && b.tag === 0).sort((x, y) => x.von - y.von);
+    const offen = (r.ausstattung || []).filter(([, v]) => /\[|bestätigen|folgt/i.test(v)).length;
+    fuss = `<div class="mono" style="margin-top:14px">HEUTE IN DIESEM RAUM</div><div class="liste" style="margin-top:6px;gap:4px">${heute.map((b) => `<div class="zeile pruef" data-detail="${b.id}" role="button" tabindex="0" style="cursor:pointer"><span>${b.von}–${b.bis} Uhr</span><span>${esc(wer(b) || 'Blockiert')}</span></div>`).join('') || '<span class="hinweis">Heute frei.</span>'}</div>
+    ${offen ? `<div class="karte" style="margin-top:10px;border-color:rgba(255,179,122,.5)"><b>${offen} Angabe${offen > 1 ? 'n' : ''} noch offen</b><div class="hinweis">Markiert mit [ ] oder „bestätigen“. Vor dem Start klären.</div></div>` : ''}
+    ${r.id !== 'lounge' ? `<button class="primaer" style="width:100%;margin-top:14px;min-height:52px" data-schnell="credits" data-raumzu>Für Kunden eintragen</button>` : `<button class="primaer" style="width:100%;margin-top:14px;min-height:52px" data-schnell="event" data-raumzu>Veranstaltung eintragen</button>`}`;
+  } else {
+    const eigen = PARTNER[S.partner].studios.includes(r.id);
+    fuss = eigen ? `<button class="primaer" style="width:100%;margin-top:14px;min-height:52px" data-ptab="blockieren" data-raumzu>Eigennutzung blockieren</button><button style="width:100%;margin-top:8px" data-ptab="kontakt" data-raumzu>Zustand melden</button>`
+      : r.id === 'lounge' ? `<div class="hinweis" style="margin-top:12px">Küche und Chill-Area dürfen Sie mitnutzen, solange keine Veranstaltung eingetragen ist (rot im Kalender).</div>` : `<div class="hinweis" style="margin-top:12px">Raum von CloudStudios. Belegung sehen Sie im Kalender.</div>`;
+  }
+  return `<button data-raumzu aria-label="Zurück" style="width:44px;padding:0">‹</button>
+    ${r.fotos ? `<div id="galerie" style="position:relative;display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin-top:12px;padding-bottom:4px">${r.fotos.map(([f, t], i) => `<figure style="flex:none;width:${r.format === 'quer' ? '92%' : '78%'};scroll-snap-align:center;margin:0;position:relative"><img src="bilder/${f}.jpg" alt="${esc(t)}" ${i > 1 ? 'loading="lazy"' : ''} style="display:block;width:100%;aspect-ratio:${r.format === 'quer' ? '16/9' : '3/4'};object-fit:cover;border-radius:22px;border:1px solid rgba(255,255,255,.15)"><figcaption style="position:absolute;left:10px;right:10px;bottom:10px;padding:6px 10px;border-radius:14px;font-size:12px;background:rgba(10,12,18,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.15)">${i + 1}/${r.fotos.length} · ${esc(t)}</figcaption></figure>`).join('')}</div>
+    <div class="chips" style="justify-content:center;margin-top:6px"><button data-galerie="-1" aria-label="Vorheriges Foto" style="width:44px;padding:0">‹</button><button data-galerie="1" aria-label="Nächstes Foto" style="width:44px;padding:0">›</button></div>`
+    : `<div style="display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin-top:12px">${[1, 2, 3].map((n) => `<div style="flex:none;width:86%;scroll-snap-align:start;height:210px;border-radius:22px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(160deg,rgba(77,163,255,.25),rgba(255,255,255,.03));display:flex;align-items:center;justify-content:center"><span class="mono">FOTO ${n} · FOLGT</span></div>`).join('')}</div>`}
+    <h2 style="font-size:clamp(20px,6.5vw,26px);margin-top:14px;white-space:nowrap">${esc(r.name)}</h2><div class="hinweis">${esc(r.zeile)}</div>
+    <div class="raster" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px">${[['PERSONEN', r.personen], ['FLÄCHE', r.flaeche], ['PREIS', r.preis]].map(([l, v]) => `<div class="karte" style="padding:10px"><div class="mono" style="font-size:9px">${l}</div><b style="font-size:14px">${esc(v)}</b></div>`).join('')}</div>
+    <div class="chips" style="margin-top:10px">${r.merkmale.map((m) => `<span class="karte" style="padding:6px 12px;border-radius:999px;font-size:12px">${esc(m)}</span>`).join('')}</div>
+    <div class="mono" style="margin-top:14px">AUSSTATTUNG</div>
+    <div class="karte" style="margin-top:6px;padding:4px 14px">${r.ausstattung.map(([k2, v], i) => `<div class="zeile pruef" style="padding:9px 0;${i ? 'border-top:1px solid rgba(255,255,255,.07)' : ''}"><span>${esc(k2)}</span><span style="color:#C9C9CE;text-align:right">${esc(v)}</span></div>`).join('')}</div>
+    ${r.id !== 'lounge' ? `<div class="mono" style="margin-top:14px">ZUBUCHBAR</div><div class="hinweis" style="margin-top:4px">Neumann TLM 103 · +1 Credit (Mitglieder inklusive) · Neumann U87 · +2 Credits (Mitglieder +1)</div>
+    <div class="karte" style="margin-top:12px"><div class="mono">PLUG &amp; PLAY · VOR DER ERSTEN SESSION</div><div style="margin-top:6px;font-size:14px;line-height:1.5">Bringen Sie Ihren Laptop mit eigener DAW mit. Das Einzige, was Sie vorher installieren müssen, ist der Treiber für das <b>${esc(r.treiber ? 'Universal Audio ' + r.treiber : 'Interface')}</b>. Den gibt es kostenlos über die App <b>UA Connect</b> von Universal Audio.</div><a href="https://www.uaudio.com/downloads/ua-connect/" class="karte" style="display:flex;justify-content:space-between;align-items:center;min-height:48px;margin-top:10px;padding:8px 14px;text-decoration:none;color:var(--ink)"><span><b>UA Connect herunterladen</b><br><span class="hinweis">uaudio.com · für Mac und Windows</span></span><span style="font-size:20px;color:var(--gelb)">↗</span></a></div>` : ''}
+    <div class="mono" style="margin-top:14px">GUT ZU WISSEN</div><ul class="pruef" style="margin:6px 0 0;padding-left:18px;color:#C9C9CE">${r.regeln.map((x) => `<li>${esc(x)}</li>`).join('')}${r.id !== 'lounge' ? '<li>Mindestens 2 Stunden, kostenfrei stornierbar bis 24 Std. vorher</li>' : ''}</ul>
+    ${fuss}`;
+}
+function kunde() {
+  const k = S.kunden[S.kunde], g = guthaben(S.kunde), r = reserviert(S.kunde);
+  const eigene = S.buchungen.filter((b) => b.kunde === S.kunde && b.status === 'gebucht' && abs(b.tag, b.bis) > JETZT).sort((a, b) => abs(a.tag, a.von) - abs(b.tag, b.von));
+  const naechste = eigene[0];
+  const toastHTML = S.toast ? `<div class="toast" role="status"><b>CloudStudios</b><br>${esc(S.toast)}</div>` : '';
+  let inhalt = '';
+  if (S.kTab === 'start') {
+    const ang = (g + r) ? g / (g + r) : 0, U = 339;
+    const verbindlich = naechste && abs(naechste.tag, naechste.von) - JETZT <= 24;
+    inhalt = `
+    <div style="text-align:center;margin-top:6px"><div class="logo" style="justify-content:center;font-size:20px">CLOUD<svg width="16" height="22" viewBox="0 0 22 30" aria-hidden="true"><path d="M13 1L2 17h7l-2 12L20 12h-7l3-11z" fill="#F4C430"/></svg><span style="color:#9CCBFF">STUDIOS</span></div></div>
+    <h2 style="font-size:24px;margin-top:14px">Hallo ${esc(k.name)}</h2>
+    <div class="karte zeile" style="margin-top:12px;justify-content:flex-start;gap:16px">
+      <svg class="ring" width="112" height="112" viewBox="0 0 128 128" role="img" aria-label="${fmt(g)} Credits verfügbar"><circle cx="64" cy="64" r="54" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/><circle cx="64" cy="64" r="54" fill="none" stroke="#4DA3FF" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(U * ang).toFixed(0)} ${U}" transform="rotate(-90 64 64)" style="filter:drop-shadow(0 0 8px rgba(77,163,255,.6))"/><text x="64" y="68" text-anchor="middle" fill="#F2F2F0" font-family="Space Grotesk" font-size="32" font-weight="700">${fmt(g)}</text><text x="64" y="88" text-anchor="middle" fill="#A3A3A8" font-family="JetBrains Mono" font-size="10">CREDITS</text></svg>
+      <div class="pruef"><div class="hinweis">Verfügbar</div><b>${fmt(g)} Credits</b><div class="hinweis" style="margin-top:6px">Reserviert</div><b>${fmt(r)}</b>${k.mitglied ? `<div class="hinweis" style="margin-top:6px">Mitgliedschaft</div><b>${esc(k.mitglied)}</b>` : ''}</div>
+    </div>
+    ${naechste ? `<div class="karte" style="margin-top:12px;border-color:rgba(76,141,255,.4);background:rgba(76,141,255,.08)"><div class="mono" style="color:#9DBCFF">${verbindlich ? 'VERBINDLICH' : 'NÄCHSTE SESSION'}</div><b>${ST[naechste.studio].name} · ${TAGE[naechste.tag]} ${naechste.von}–${naechste.bis} Uhr</b><div class="hinweis">${fmt(naechste.credits)} Credits · ${verbindlich ? 'nicht mehr kostenfrei stornierbar' : 'kostenfrei stornierbar bis 24 Std. vorher'}</div>
+      ${verbindlich ? `<div class="karte" style="margin-top:8px;text-align:center"><div class="mono">ZUGANGSCODE ${TAGE[naechste.tag]}</div><div class="zahl" style="letter-spacing:.3em;color:var(--gelb)">${S.codes[naechste.tag] || 'folgt'}</div></div>` : '<div class="hinweis" style="margin-top:6px">Der Zugangscode erscheint 24 Std. vor Beginn.</div>'}</div>` : ''}
+    <div class="mono" style="margin-top:16px">UNSERE RÄUME</div>
+    ${raumKarten()}
+    <div class="mono" style="margin-top:14px">HEUTE IM KOMPLEX</div>
+    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:6px">${['s1', 's3', 's4', 's5'].map((s) => { const b = belegt(s, 0, JETZT, JETZT + 0.01); return `<div class="karte" style="padding:10px;${!b && ST[s].selbst ? 'border-color:rgba(77,163,255,.5);background:rgba(77,163,255,.08)' : ''}"><b>${ST[s].name}</b><div class="hinweis">${!ST[s].selbst ? 'auf Anfrage' : b ? 'belegt' : 'jetzt frei'}</div></div>`; }).join('')}</div>
+    <button class="primaer" style="width:100%;margin-top:14px;min-height:52px" data-ktab="buchen">Session buchen</button>`;
+  } else if (S.kTab === 'buchen') {
+    const f = S.form, st = ST[f.studio], mitglied = !!k.mitglied;
+    const extraCr = ['tlm103', 'u87'].filter((e) => f[e]).reduce((a, e) => a + (mitglied ? EXTRAS[e].crMitglied : EXTRAS[e].cr), 0);
+    const bedarf = f.std * st.cph + extraCr;
+    const modus = `<div class="chips" role="group" aria-label="Art der Buchung" style="margin-bottom:12px"><button class="${S.bModus === 'studio' ? 'aktiv' : ''}" data-bmodus="studio">Studio buchen</button><button class="${S.bModus === 'event' ? 'aktiv' : ''}" data-bmodus="event">Veranstaltung anfragen</button></div>`;
+    if (S.bModus === 'event') { inhalt = modus + eventFormHTML(k); } else
+    inhalt = modus + `<h2 style="font-size:22px">Studio buchen</h2><div class="hinweis">Guthaben: <b style="color:var(--gelb)">${fmt(g)} Credits</b></div>
+    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">${['s1', 's3', 's4', 's5'].map((s) => `<button class="${f.studio === s ? 'aktiv' : ''}" data-fstudio="${s}" style="text-align:left;min-height:56px;padding:8px 10px"><b>${ST[s].name}</b><br><span style="font-size:11px">${selbstBuchbar(s, S.kunde) ? fmt(ST[s].cph) + ' Cr/Std.' + (ST[s].selbst ? '' : ' · freigegeben') : 'nur auf Anfrage'}</span></button>`).join('')}</div>
+    <div class="karte" style="margin-top:10px;padding:10px">${kalenderHTML('ftag', { studios: [f.studio], sicht: 'kunde', schmal: true })}</div>
+    ${!selbstBuchbar(f.studio, S.kunde) ? `${s5Formular(f)}` : `
+    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">
+      <label>Beginn<select data-fstart>${Array.from({ length: 15 }, (_, i) => i + 8).map((h) => `<option ${h === f.start ? 'selected' : ''}>${h}</option>`).join('')}</select></label>
+      <label>Stunden<select data-fstd>${[2, 3, 4, 5, 6, 7, 8, 10, 12].map((h) => `<option ${h === f.std ? 'selected' : ''}>${h}</option>`).join('')}</select></label>
+    </div>
+    <div class="mono" style="margin-top:10px">EXTRAS · TLM 102 IMMER INKLUSIVE</div>
+    <div class="chips" style="margin-top:6px">${['tlm103', 'u87'].map((e) => { const weg = extraBelegt(e, f.tag, f.start, f.start + f.std); const p = mitglied ? EXTRAS[e].crMitglied : EXTRAS[e].cr; return `<button class="${f[e] && !weg ? 'aktiv' : ''}" data-fextra="${e}" ${weg ? 'disabled' : ''}>${EXTRAS[e].name} · ${weg ? 'vergeben' : p ? '+' + p + ' Cr' : 'inklusive'}</button>`; }).join('')}</div>
+    <div class="karte" style="margin-top:10px;background:rgba(77,163,255,.07);border-color:rgba(77,163,255,.3)"><div class="zeile"><span>${f.std} Std. × ${fmt(st.cph)} Cr${extraCr ? ' + Extras ' + extraCr : ''}</span><b>${fmt(bedarf)} Credits</b></div><div class="zeile"><span class="hinweis">Danach übrig</span><b>${bedarf <= g ? fmt(g - bedarf) : '—'}</b></div></div>
+    <div class="hinweis" style="margin-top:6px">Wechselzeit ist inklusive: Bitte räumen Sie das Studio bis ${f.start + f.std - 1}:45 Uhr, damit die nächste Session pünktlich startet.</div>
+    <div id="k-msg" aria-live="polite"></div>
+    <button class="primaer" style="width:100%;margin-top:10px;min-height:52px" data-kbuchen>Verbindlich buchen · ${fmt(bedarf)} Credits</button>`}`;
+  } else if (S.kTab === 'raum') {
+    inhalt = raumSeite(S.raum, 'kunde');
+  } else if (S.kTab === 'shop') {
+    const posten = Object.entries(S.korb).filter(([, n]) => n > 0).map(([id, n]) => ({ a: ARTIKEL[id], n }));
+    const summe = posten.reduce((x, p) => x + p.a.preis * p.n, 0);
+    const karte = (a) => `<div class="karte zeile" style="padding:10px 12px"><div><b>${esc(a.name)}</b><div class="hinweis">${esc(a.info)}</div></div><div class="zeile" style="gap:6px"><b style="white-space:nowrap">${a.preis} €</b>${S.korb[a.id] ? `<button data-korbminus="${a.id}" aria-label="Weniger">−</button><b>${S.korb[a.id]}</b>` : ''}<button data-korbplus="${a.id}" aria-label="${esc(a.name)} in den Warenkorb" class="${S.korb[a.id] ? '' : 'primaer'}">+</button></div></div>`;
+    inhalt = `<h2 style="font-size:22px">Shop</h2><div class="hinweis">Credits, Gutscheine und bald Merch von Clouds Records</div>
+    <div class="mono" style="margin-top:14px">CREDIT-PAKETE · 3 MONATE GÜLTIG</div><div class="liste" style="margin-top:6px">${SHOP.pakete.map(karte).join('')}</div>
+    <div class="mono" style="margin-top:14px">GUTSCHEINE</div><div class="liste" style="margin-top:6px">${SHOP.gutscheine.map(karte).join('')}</div>
+    <div class="mono" style="margin-top:14px">MERCH · BALD VERFÜGBAR</div>
+    <div class="raster" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px">${SHOP.merch.map((m) => `<div class="karte" style="padding:10px;text-align:center"><div style="height:56px;border-radius:10px;background:linear-gradient(135deg,rgba(77,163,255,.18),rgba(255,255,255,.03));display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 22 30" aria-hidden="true"><path d="M13 1L2 17h7l-2 12L20 12h-7l3-11z" fill="#F4C430" opacity=".8"/></svg></div><b style="display:block;font-size:12px;margin-top:6px;line-height:1.25">${esc(m.name)}</b><div class="hinweis" style="font-size:11px">Preis folgt</div><button data-merk="${m.id}" style="width:100%;margin-top:6px;font-size:12px;padding:0 4px" class="${S.merkliste[m.id] ? 'aktiv' : ''}">${S.merkliste[m.id] ? 'Gemerkt' : 'Benachrichtigen'}</button></div>`).join('')}</div>
+    <div class="karte" style="margin-top:14px;border-color:rgba(77,163,255,.35)">
+      <div class="mono">WARENKORB</div>
+      ${posten.length ? posten.map((p) => `<div class="zeile pruef" style="margin-top:4px"><span>${p.n} × ${esc(p.a.name)}</span><span style="white-space:nowrap">${eur(p.a.preis * p.n)}</span></div>`).join('') + `<div class="zeile" style="border-top:1px solid var(--rand);margin-top:6px;padding-top:6px"><b>Gesamt inkl. MwSt.</b><b style="color:var(--gelb);white-space:nowrap">${eur(summe)}</b></div>
+      <label style="flex-direction:row;align-items:flex-start;gap:10px;margin-top:10px;font-size:12px;line-height:1.45;color:#C9C9CE"><input type="checkbox" data-widerruf ${S.widerruf ? 'checked' : ''} style="min-height:22px;width:22px;flex:none;margin-top:1px"><span style="display:block;flex:1">Ich habe die <a href="#kunde">Widerrufsbelehrung</a> gelesen und stimme zu, dass CloudStudios vor Ablauf der Widerrufsfrist mit der Leistung beginnt. Mir ist bekannt, dass mein Widerrufsrecht dann vorzeitig erlischt.</span></label>
+      <button class="primaer" style="width:100%;margin-top:10px;min-height:50px" data-bestellen ${S.widerruf ? '' : 'disabled'}>Bestellung anfragen</button>
+      <div class="hinweis" style="margin-top:6px">Sie erhalten Rechnung und Zahlungsdaten von unserem Team. Nach Zahlungseingang werden Credits gutgeschrieben und Gutscheincodes verschickt.</div>` : '<div class="hinweis" style="margin-top:4px">Noch leer.</div>'}
+    </div>
+    <div class="hinweis" style="margin-top:10px">Verkäufer: CloudStudios UG (haftungsbeschränkt), Wendenstraße 279, Hamburg · Clouds Records ist ein Bereich der CloudStudios UG.</div>`;
+  } else if (S.kTab === 'verlauf') {
+    const zeilen = [];
+    S.posten.filter((p) => p.kunde === S.kunde).forEach((p) => zeilen.push({ t: p.art, s: (p.rn ? p.rn + ' · ' : '') + 'gültig bis ' + p.bis, v: '+' + fmt(p.credits) }));
+    S.buchungen.filter((b) => b.kunde === S.kunde).forEach((b) => { zeilen.push({ t: `${ST[b.studio].name} · ${b.bis - b.von} Std.`, s: `${TAGE[b.tag]} ${b.von}–${b.bis} · ${b.status}`, v: '−' + fmt(b.credits) }); if (b.erstattet) zeilen.push({ t: 'Storno-Gutschrift', s: `${TAGE[b.tag]} · mehr als 24 Std. vorher`, v: '+' + fmt(b.credits) }); });
+    inhalt = `<h2 style="font-size:22px">Verlauf</h2><div class="liste" style="margin-top:12px">${zeilen.map((z) => `<div class="karte zeile" style="padding:10px 12px"><div><b style="font-size:14px">${esc(z.t)}</b><div class="hinweis">${esc(z.s)}</div></div><b style="font-family:'Space Grotesk';color:${z.v[0] === '+' ? 'var(--gelb)' : 'var(--ink)'}">${z.v}</b></div>`).join('')}</div>
+    <div class="mono" style="margin-top:14px">MEINE TERMINE</div><div class="liste" style="margin-top:6px">${eigene.map((b) => `<div class="karte zeile" style="padding:10px 12px"><span>${ST[b.studio].name} · ${TAGE[b.tag]} ${b.von}–${b.bis}</span><button data-kstorno="${b.id}">Stornieren</button></div>`).join('') || '<span class="hinweis">Keine kommenden Termine.</span>'}</div>`;
+  } else {
+    inhalt = `<h2 style="font-size:22px">Mein Konto</h2><div class="hinweis">${esc(k.name)} · ${k.kn}</div>
+    <div class="karte liste" style="margin-top:12px">${S.posten.filter((p) => p.kunde === S.kunde && p.bisAbs >= JETZT).map((p) => { const r = postenRest(p); return `<div><div class="zeile"><span>${esc(p.art)}${p.nur ? ' · nur ' + p.nur.map((s) => ST[s].name).join(', ') : ''}</span><b>${fmt(r)}</b></div><div style="height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:4px"><div style="width:${Math.max(0, r / p.credits * 100)}%;height:6px;border-radius:3px;background:var(--gelb)"></div></div><div class="hinweis">gültig bis ${p.bis}</div></div>`; }).join('')}</div>
+    <div class="chips" style="margin-top:12px"><button class="primaer" data-ktab="shop">Credits im Shop nachladen</button></div>
+    <div class="mono" style="margin-top:14px">GUTSCHEIN EINLÖSEN</div>
+    <form id="f-gutschein" class="zeile" style="margin-top:6px;gap:6px"><input name="code" placeholder="z. B. CS-GIFT-7K2P" autocomplete="off" style="flex:1;text-transform:uppercase"><button type="submit">Einlösen</button></form>
+    <div id="g-msg" class="hinweis" aria-live="polite" style="margin-top:4px">Test-Code zum Ausprobieren: CS-GIFT-7K2P</div>
+    <div class="mono" style="margin-top:14px">PROBLEM MELDEN</div>
+    <div class="chips" style="margin-top:6px"><button data-problem>Kopfhörer defekt melden (Beispiel)</button></div>`;
+  }
+  return `<div class="handy">${toastHTML}<div style="flex:1">${inhalt}</div>
+  <nav class="handynav">${[
+    ['start', 'Start', '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
+    ['buchen', 'Kalender', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.5" fill="currentColor"/>'],
+    ['shop', 'Shop', '<path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>'],
+    ['verlauf', 'Verlauf', '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>'],
+    ['konto', 'Konto', '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>']
+  ].map(([id, l, ikon]) => `<button class="${S.kTab === id ? 'aktiv' : ''}" data-ktab="${id}" aria-current="${S.kTab === id ? 'page' : 'false'}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="${S.kTab === id ? 'filter:drop-shadow(0 0 6px rgba(77,163,255,.7))' : ''}">${ikon}</svg>${l}</button>`).join('')}</nav></div>`;
+}
+
+function abrechnung(partner) {
+  if (window.CS_ABR) return window.CS_ABR(partner);
+  const zeilen = [];
+  if (partner === 'blackclouds') {
+    for (const [sid, satz] of [['s4', 14], ['s5', 35]]) {
+      const bs = S.buchungen.filter((b) => b.studio === sid && b.credits > 0 && (b.status === 'gebucht' || (b.status === 'storniert' && !b.erstattet)));
+      const std = bs.reduce((a, b) => a + (b.bis - b.von), 0);
+      const walk = S.buchungen.filter((b) => b.studio === sid && b.status === 'gebucht' && !b.credits && b.gast).reduce((a, b) => a + (b.bis - b.von), 0);
+      zeilen.push({ t: `${ST[sid].name}: ${fmt(std + walk)} Std. × ${satz} €`, b: (std + walk) * satz });
+    }
+  } else {
+    const cr = S.zuord.filter((z) => { const b = S.buchungen.find((x) => x.id === z.buchung); const p = S.posten.find((x) => x.id === z.posten); return b.studio === 's3' && !b.erstattet && !p.basement; }).reduce((a, z) => a + z.credits, 0);
+    zeilen.push({ t: `CloudStudios-Credits in Studio 3: ${fmt(cr)} × 5 €`, b: cr * 5 });
+    const walk = S.buchungen.filter((b) => b.studio === 's3' && b.status === 'gebucht' && b.preis);
+    zeilen.push({ t: `Walk-In Studio 3: 50 % netto (${walk.length})`, b: walk.reduce((a, b) => a + b.preis / 1.19 / 2, 0) });
+    for (const p of S.pauschalen) zeilen.push({ t: `${p.name} (${S.kunden[p.kunde].name}): 50 % von ${eur(p.brutto / 1.19)} netto`, b: Math.round(p.brutto / 1.19 / 2 * 100) / 100 });
+  }
+  return zeilen;
+}
+function brettHTML(partnerId, ich) {
+  const liste = S.brett.filter((m) => m.partner === partnerId);
+  return `<div class="liste" style="margin-top:10px">${liste.map((m) => { const meins = m.von === ich; return `<div class="karte" style="padding:10px 12px;max-width:86%;${meins ? 'align-self:flex-end;border-color:rgba(77,163,255,.45);background:rgba(77,163,255,.12)' : 'align-self:flex-start'}"><div class="mono">${esc(m.von === 'CloudStudios' ? 'CloudStudios' : PARTNER[m.partner].name)} · ${esc(m.zeit)}</div><div style="margin-top:2px">${esc(m.text)}</div></div>`; }).join('') || '<div class="hinweis">Noch keine Mitteilungen.</div>'}</div>
+  <form id="f-brett" data-partner="${partnerId}" data-von="${ich}" style="display:flex;gap:8px;margin-top:10px"><input name="text" placeholder="Mitteilung schreiben" autocomplete="off" style="flex:1;min-height:48px"><button class="primaer" type="submit" style="min-width:88px">Senden</button></form>
+  <div class="hinweis" style="margin-top:6px">${ich === 'CloudStudios' ? 'Der Partner bekommt eine Push-Nachricht.' : 'CloudStudios bekommt eine Push-Nachricht. Für Notfälle bitte anrufen.'}</div>`;
+}
+function letzteBuchungVor(raum) {
+  const ids = raum === 'gemein' ? ['lounge', 's1'] : [raum];
+  return S.buchungen.filter((b) => ['gebucht', 'geschlossen'].includes(b.status) && ids.includes(b.studio) && abs(b.tag, b.bis) <= JETZT + 0.01 && !b.partner).sort((x, y) => abs(y.tag, y.bis) - abs(x.tag, x.bis))[0]
+    || S.buchungen.filter((b) => ['gebucht', 'geschlossen'].includes(b.status) && ids.includes(b.studio) && b.tag === 0 && b.von <= JETZT && !b.partner).sort((x, y) => y.von - x.von)[0];
+}
+function tagName(i) { return i < 0 ? 'Gestern' : TAGE[i]; }
+function wer(b) { if (!b) return null; if (b.kunde) return `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}`; if (b.gast) return `${b.gast}${b.kn ? ' · ' + b.kn : ''}`; return b.grund || 'Veranstaltung'; }
+function zustandKarte(a2) {
+  const b = S.buchungen.find((x) => x.id === a2.buchung);
+  return `<div class="karte" style="border-color:rgba(255,179,122,.5)"><div class="zeile mono" style="color:#FFB37A"><span>ZUSTAND · ${esc((PARTNER[a2.partner]?.name || 'Team').toUpperCase())}</span><span>${esc(a2.raumName)}</span></div>
+    <div style="font-weight:600;margin-top:4px">${esc(a2.text)}</div>
+    ${a2.foto ? `<div class="hinweis">📎 ${esc(a2.foto)}</div>` : ''}
+    <div class="hinweis" style="margin-top:4px">Letzte Buchung davor: ${b ? `${tagName(b.tag)} ${b.von}–${b.bis} Uhr · ${esc(wer(b))}` : 'keine gefunden'}</div>
+    <div class="chips" style="margin-top:8px">${b && b.kunde ? `<button data-akte="${b.kunde}">Kundenakte</button>` : ''}<button data-erledigt="${a2.id}" class="primaer">Erledigt</button></div></div>`;
+}
+function auslastungWoche(sid, partnerId) {
+  const bs = S.buchungen.filter((b) => b.studio === sid && b.tag < 7 && ['gebucht', 'angefragt', 'geschlossen', 'blockiert'].includes(b.status));
+  const cs = bs.filter((b) => !b.partner && b.status !== 'blockiert').reduce((a, b) => a + (b.bis - b.von), 0);
+  const eigen = bs.filter((b) => b.partner === partnerId).reduce((a, b) => a + (b.bis - b.von), 0);
+  const ges = 7 * 16;
+  return { cs, eigen, frei: Math.max(0, ges - cs - eigen), ges };
+}
+function partner() {
+  const P = PARTNER[S.partner], z = abrechnung(S.partner), summe = z.reduce((a, x) => a + x.b, 0);
+  const tab = (S.partner !== 'blackclouds' && S.pTab === 'studio5') ? 'uebersicht' : (S.pTab || 'uebersicht');
+  const s5offen = S.anfragen.filter((a2) => a2.art === 's5' && a2.status === 'offen' && !a2.partnerEntscheid);
+  const kopf = (titel, unter) => `<div style="padding-right:56px"><div class="logo" style="font-size:15px;margin-bottom:6px">CLOUD<svg width="13" height="18" viewBox="0 0 22 30" aria-hidden="true"><path d="M13 1L2 17h7l-2 12L20 12h-7l3-11z" fill="#F4C430"/></svg><span style="color:#9CCBFF">STUDIOS</span></div><div class="mono">${unter}</div><h2 style="font-size:26px;margin-top:4px">${titel}</h2><div class="hinweis" style="margin-top:2px">Angemeldet als ${esc(P.person)} · ${esc(P.name)}</div></div>`;
+  const anon = (b) => b.partner === S.partner ? (b.grund || 'Eigennutzung') : (S.partner === 'basement' && b.kunde && S.pauschalen.some((p) => p.kunde === b.kunde)) ? S.kunden[b.kunde].name + ' · Ihre Pauschale' : b.status === 'blockiert' ? 'Blockiert (CloudStudios)' : b.status === 'geschlossen' ? 'Veranstaltung · Gemeinschaftsflächen gesperrt' : b.status === 'angefragt' ? 'Angefragt' : 'CloudStudios-Buchung';
+  const zeile = (b) => `<div class="karte zeile" style="padding:10px 12px"><div style="display:flex;gap:10px;align-items:center"><i style="width:10px;height:10px;border-radius:50%;background:var(--${b.partner === S.partner ? 'grau' : farbe(b) === 'lila' ? 'blau' : farbe(b)});flex:none"></i><div><b>${b.von}–${b.bis} · ${b.gruppe ? 'Lounge + Studio 1' : ST[b.studio].name}</b><div class="hinweis">${esc(anon(b))}</div></div></div>${b.tag === 0 && b.von <= JETZT && b.bis > JETZT ? '<span class="mono" style="color:var(--gelb)">LÄUFT</span>' : ''}</div>`;
+  let inhalt = '';
+  if (tab === 'uebersicht') {
+    const heute = S.buchungen.filter((b) => aktiv(b) && b.tag === 0 && P.studios.includes(b.studio)).sort((x, y) => x.von - y.von);
+    const morgen = S.buchungen.filter((b) => aktiv(b) && b.tag === 1 && P.studios.includes(b.studio)).length;
+    const ev = belegt('lounge', 0, JETZT, JETZT + 0.01), s1 = belegt('s1', 0, JETZT, JETZT + 0.01);
+    const naechstesEv = S.buchungen.filter((b) => aktiv(b) && b.studio === 'lounge' && abs(b.tag, b.bis) > JETZT).sort((x, y) => abs(x.tag, x.von) - abs(y.tag, y.von))[0];
+    const neuMsg = S.brett.filter((m) => m.partner === S.partner && m.neu && m.von === 'CloudStudios');
+    const studioKachel = (sid) => {
+      const jetzt = belegt(sid, 0, JETZT, JETZT + 0.01), r = RAUM[sid];
+      const next = S.buchungen.filter((b) => aktiv(b) && b.studio === sid && abs(b.tag, b.von) > JETZT).sort((x, y) => abs(x.tag, x.von) - abs(y.tag, y.von))[0];
+      const n = heute.filter((b) => b.studio === sid), std = n.reduce((a, b) => a + (b.bis - b.von), 0);
+      const bild = r && r.fotos ? `background-image:linear-gradient(100deg,rgba(8,12,22,.92) 35%,rgba(8,12,22,.45)),url(bilder/${r.fotos[0][0]}.jpg);background-size:cover;background-position:center` : 'background:linear-gradient(135deg,rgba(77,163,255,.22),rgba(167,123,255,.10) 60%,rgba(255,255,255,.03))';
+      return `<button data-raum="${sid}" class="karte" style="width:100%;text-align:left;padding:18px;border-radius:26px;margin-top:10px;${bild};border-color:${jetzt ? 'rgba(255,255,255,.18)' : 'rgba(77,163,255,.55)'}">
+        <div class="zeile"><span class="mono" style="color:#C9DBF2">${esc(ST[sid].name.toUpperCase())}</span><span class="mono" style="display:flex;align-items:center;gap:6px;color:${jetzt ? '#FFB37A' : '#7FE0AE'}"><i style="width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor"></i>${jetzt ? 'BELEGT' : 'FREI'}</span></div>
+        <div class="zahl" style="font-size:30px;margin-top:8px;color:${jetzt ? 'var(--ink)' : 'var(--gelb)'}">${jetzt ? 'bis ' + jetzt.bis + ':00 Uhr' : 'Jetzt frei'}</div>
+        <div class="hinweis" style="margin-top:4px;color:#D5D8E0">${jetzt ? esc(anon(jetzt)) : next ? `Nächster Termin: ${next.tag === 0 ? 'heute' : next.tag === 1 ? 'morgen' : TAGE[next.tag]}, ${next.von}–${next.bis} Uhr` : 'Keine weiteren Termine geplant'}</div>
+        <div class="chips" style="margin-top:12px;gap:6px">${[`Heute ${n.length} Termin${n.length === 1 ? '' : 'e'}`, `${fmt(std)} Std. belegt`, `Morgen ${morgen}`].map((c) => `<span style="padding:5px 11px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14)">${c}</span>`).join('')}</div></button>`;
+    };
+    const tl = (b) => { const laeuft = b.von <= JETZT && b.bis > JETZT, vorbei = b.bis <= JETZT, eigen = b.partner === S.partner;
+      return `<div class="karte" style="display:flex;gap:14px;align-items:stretch;padding:12px 14px;${vorbei ? 'opacity:.5' : ''}${laeuft ? ';border-color:rgba(77,163,255,.6);background:rgba(77,163,255,.1)' : ''}">
+        <div style="min-width:52px;text-align:right"><b class="zahl" style="font-size:18px">${b.von}:00</b><div class="hinweis">bis ${b.bis}:00</div></div>
+        <i style="width:4px;border-radius:2px;background:var(--${eigen ? 'grau' : farbe(b) === 'lila' ? 'lila' : farbe(b)});flex:none"></i>
+        <div style="flex:1;min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(anon(b))}</b><div class="hinweis">${esc(ST[b.studio].name)} · ${b.bis - b.von} Std.</div></div>
+        ${laeuft ? '<span class="mono" style="align-self:center;color:var(--gelb)">LÄUFT</span>' : vorbei ? '<span class="mono" style="align-self:center">VORBEI</span>' : ''}</div>`; };
+    inhalt = kopf(P.name, `PARTNER-ZUGANG · ${TAGE[0].toUpperCase()} ${UHR}`) + `
+    ${P.studios.map(studioKachel).join('')}
+    ${S.partner === 'blackclouds' && s5offen.length ? `<button data-ptab="studio5" class="karte" style="margin-top:10px;width:100%;text-align:left;border-color:rgba(52,199,123,.5);background:rgba(52,199,123,.1)"><b>${s5offen.length} Studio-5-Anfrage${s5offen.length > 1 ? 'n' : ''} wartet auf Ihre Freigabe</b><br><span class="hinweis">jetzt ansehen</span></button>` : ''}
+    ${neuMsg.length ? `<button data-ptab="kontakt" class="karte" style="margin-top:10px;width:100%;text-align:left;border-color:rgba(77,163,255,.55);background:rgba(77,163,255,.12)"><span class="mono">NEUE MITTEILUNG VON CLOUDSTUDIOS</span><br><b>${esc(neuMsg[neuMsg.length - 1].text)}</b></button>` : ''}
+    <div class="zeile" style="margin-top:20px"><span class="mono">HEUTE IN IHREN STUDIOS</span><button data-ptab="kalender" style="min-height:36px;padding:4px 12px;font-size:13px">Kalender ›</button></div>
+    <div class="liste" style="margin-top:8px;gap:8px">${heute.map(tl).join('') || '<div class="karte hinweis" style="text-align:center;padding:18px">Heute keine Termine.</div>'}</div>
+    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px">
+      <button data-raum="lounge" class="karte" style="text-align:left;padding:16px;border-radius:24px;min-height:150px;${ev ? 'border-color:rgba(255,90,95,.5);background:rgba(255,90,95,.1)' : 'border-color:rgba(52,199,123,.45);background:linear-gradient(160deg,rgba(52,199,123,.16),rgba(255,255,255,.03))'}">
+        <div class="mono">KÜCHE &amp; CHILL-AREA</div>
+        <div class="zahl" style="font-size:22px;margin-top:8px;color:${ev ? 'var(--rot)' : 'var(--gruen)'}">${ev ? 'gesperrt' : 'nutzbar'}</div>
+        <div class="hinweis" style="margin-top:4px">${ev ? 'Veranstaltung bis ' + ev.bis + ':00' : naechstesEv ? 'Nächste Veranstaltung ' + TAGE[naechstesEv.tag] + ', ab ' + naechstesEv.von + ' Uhr' : 'Keine Veranstaltung geplant'}</div>
+        <div class="hinweis">Studio 1 ${s1 ? 'belegt bis ' + s1.bis + ':00' : 'jetzt frei'}</div></button>
+      <button data-ptab="abrechnung" class="karte" style="text-align:left;padding:16px;border-radius:24px;min-height:150px;background:linear-gradient(160deg,rgba(77,163,255,.2),rgba(255,255,255,.03));border-color:rgba(77,163,255,.45)">
+        <div class="mono">GUTSCHRIFT ${MONATE[datum(0).getUTCMonth()].toUpperCase()}</div>
+        <div class="zahl" style="font-size:24px;margin-top:8px;color:var(--gelb)">${eur(summe)}</div>
+        <div class="hinweis" style="margin-top:4px">${S.geprueft[S.partner] ? '✓ von Ihnen geprüft' : 'Live-Stand · antippen für Details'}</div></button>
+    </div>
+    <div class="mono" style="margin-top:20px">AUSLASTUNG DIESE WOCHE</div>
+    <div class="karte liste" style="margin-top:8px;gap:12px;padding:16px">${P.studios.map((sid) => { const a = auslastungWoche(sid, S.partner), w = (x) => (x / a.ges * 100).toFixed(1) + '%'; return `<div><div class="zeile"><span>${esc(ST[sid].name)}</span><b class="zahl" style="font-size:18px">${Math.round((a.cs + a.eigen) / a.ges * 100)} %</b></div>
+      <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.08);margin-top:6px"><i style="width:${w(a.cs)};background:var(--blau)"></i><i style="width:${w(a.eigen)};background:var(--grau)"></i></div>
+      <div class="hinweis" style="margin-top:4px">${fmt(a.cs)} Std. CloudStudios · ${fmt(a.eigen)} Std. eigene Nutzung · ${fmt(a.frei)} Std. frei (8–24 Uhr)</div></div>`; }).join('')}</div>
+    ${S.partner === 'basement' ? `<div class="mono" style="margin-top:20px">IHRE PAUSCHALKUNDEN</div>
+    <div class="liste" style="margin-top:8px;gap:8px">${S.pauschalen.map((pa) => { const k = S.kunden[pa.kunde], po = S.posten.find((x) => x.kunde === pa.kunde && x.basement && x.bisAbs >= JETZT), rest = po ? Math.max(0, postenRest(po)) : 0, genutzt = po ? po.credits - rest : 0, naechste = S.buchungen.filter((b) => b.kunde === pa.kunde && aktiv(b) && abs(b.tag, b.bis) > JETZT).sort((x, y) => abs(x.tag, x.von) - abs(y.tag, y.von))[0];
+      return `<div class="karte" style="padding:14px 16px"><div class="zeile"><b>${esc(k.name)}</b><span class="mono" style="color:#E2D6FF">${esc(pa.name.toUpperCase())}</span></div>
+      <div class="zeile" style="margin-top:8px"><span class="hinweis">${fmt(genutzt)} von ${po ? fmt(po.credits) : '–'} Std. genutzt</span><b>${fmt(rest)} übrig</b></div>
+      <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:6px"><div style="width:${po ? Math.round(genutzt / po.credits * 100) : 0}%;height:8px;border-radius:4px;background:var(--lila)"></div></div>
+      <div class="hinweis" style="margin-top:6px">Nächster Termin: ${naechste ? `${TAGE[naechste.tag]}, ${naechste.von}–${naechste.bis} Uhr` : 'keiner geplant'} · gültig bis ${po ? esc(po.bis) : '–'}</div></div>`; }).join('')}</div>` : ''}
+    <div class="mono" style="margin-top:20px">RÄUME IM HAUS</div>
+    ${raumKarten()}
+    <div class="hinweis" style="margin-top:10px">CloudStudios-Kunden sehen Sie ohne Namen, nur Zeit und Studio.${S.partner === 'basement' ? ' Ihre eigenen Pauschalkunden sehen Sie mit Namen.' : ''}</div>`;
+  } else if (tab === 'kalender') {
+    inhalt = kopf('Kalender', 'IHRE STUDIOS · STUDIO 1 · GEMEINSCHAFTSFLÄCHEN') + `<div class="karte" style="margin-top:12px;padding:12px">${kalenderHTML('pTag', { studios: [...P.studios, 's1', 'lounge'], sicht: 'partner', partner: S.partner })}</div>
+    <div class="hinweis" style="margin-top:6px">Rot in der Lounge heißt: Veranstaltung, Küche und Chill-Area sind dann nicht nutzbar.</div>
+    <div style="margin-top:8px">${LEGENDE}</div>
+    <div class="mono" style="margin-top:14px">TERMINE AM ${TAGE[S.pTag].toUpperCase()}</div>
+    <div class="liste" style="margin-top:6px">${S.buchungen.filter((b) => aktiv(b) && b.tag === S.pTag && [...P.studios, 's1', 'lounge'].includes(b.studio) && !(b.gruppe && b.studio === 's1')).sort((x, y) => x.von - y.von).map(zeile).join('') || '<span class="hinweis">Keine Termine.</span>'}</div>`;
+  } else if (tab === 'blockieren') {
+    inhalt = kopf('Eigennutzung', 'STUDIO FÜR SICH BLOCKIEREN') + `
+    <div class="hinweis" style="margin-top:8px">Blockierte Zeiten sehen CloudStudios-Kunden als „Belegt“. Es entstehen keine Kosten.</div>
+    <form id="f-partner" class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px;align-items:end">
+      <label style="grid-column:1/-1">Studio<select name="studio">${P.studios.map((x) => `<option value="${x}">${ST[x].name}</option>`).join('')}</select></label>
+      <label style="grid-column:1/-1">Tag<select name="tag">${TAGE.map((t, i) => `<option value="${i}" ${i === S.pTag ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label>Von<select name="von">${Array.from({ length: 16 }, (_, i) => i + 8).map((h) => `<option>${h}</option>`).join('')}</select></label>
+      <label>Bis<select name="bis">${Array.from({ length: 16 }, (_, i) => i + 9).map((h) => `<option ${h === 12 ? 'selected' : ''}>${h}</option>`).join('')}</select></label>
+      <button class="primaer" type="submit" style="grid-column:1/-1;min-height:52px">Blockieren</button>
+    </form>
+    <div id="f-partner-msg" class="hinweis" style="margin-top:8px" aria-live="polite"></div>
+    <div class="mono" style="margin-top:16px">IHRE EIGENNUTZUNG</div>
+    <div class="liste" style="margin-top:6px">${S.buchungen.filter((b) => aktiv(b) && b.partner === S.partner && abs(b.tag, b.bis) > JETZT).sort((x, y) => abs(x.tag, x.von) - abs(y.tag, y.von)).map((b) => `<div class="karte zeile" style="padding:10px 12px"><div><b>${ST[b.studio].name} · ${TAGE[b.tag]} ${b.von}–${b.bis}</b><div class="hinweis">${esc(b.grund)}</div></div><button data-pfrei="${b.id}">Freigeben</button></div>`).join('') || '<span class="hinweis">Keine Blockierungen.</span>'}</div>`;
+  } else if (tab === 'abrechnung') {
+    inhalt = kopf('Abrechnung', 'GUTSCHRIFT AN ' + P.name.toUpperCase()) + `
+    <div class="mono" style="margin-top:14px">${MONATE[datum(0).getUTCMonth()].toUpperCase()} · LAUFEND</div>
+    <div class="karte liste" style="margin-top:6px;gap:6px">${z.map((x) => `<div class="zeile pruef"><span>${esc(x.t)}</span><b style="white-space:nowrap">${eur(x.b)}</b></div>`).join('')}
+      <div class="zeile" style="border-top:1px solid var(--rand);padding-top:8px"><b>Gutschrift</b><b class="zahl" style="font-size:22px;color:var(--gelb);white-space:nowrap">${eur(summe)}</b></div></div>
+    ${S.geprueft[S.partner] ? `<div class="karte ok" style="margin-top:10px">✓ Von Ihnen geprüft (${esc(S.geprueft[S.partner])}). CloudStudios überweist zum Monatsende.</div>` : `<button class="primaer" data-gprueft style="width:100%;margin-top:10px;min-height:52px">Gutschrift geprüft · passt so</button><button data-ptab="kontakt" style="width:100%;margin-top:8px">Stimmt etwas nicht? Mitteilung schreiben</button>`}
+    <div class="hinweis" style="margin-top:8px">Gezählt werden gebuchte Termine und zu spät stornierte (Credits verbraucht). Rechtzeitig stornierte zählen nicht. Die Gutschrift wird zum Monatsende erstellt und überwiesen.</div>
+    <div class="mono" style="margin-top:16px">FRÜHERE MONATE</div>
+    <div class="karte hinweis" style="margin-top:6px">Erscheinen hier ab dem ersten abgeschlossenen Monat mit der App, jeweils mit Gutschrift als PDF.</div>`;
+  } else if (tab === 'studio5') {
+    const alle = S.anfragen.filter((a2) => a2.art === 's5');
+    inhalt = kopf('Studio 5', 'FREIGABE-ANFRAGEN') + `
+    <div class="hinweis" style="margin-top:8px">Kunden fragen Studio 5 über CloudStudios an. Sie entscheiden, wer rein darf. Nach Ihrer Zusage trägt CloudStudios den Termin ein.</div>
+    <div class="liste" style="margin-top:12px">${alle.map((a2) => { const k = S.kunden[a2.kunde]; return `<div class="karte" style="${a2.partnerEntscheid === 'ja' ? 'border-color:rgba(52,199,123,.5)' : a2.partnerEntscheid === 'nein' ? 'opacity:.6' : 'border-color:rgba(77,163,255,.45)'}">
+        <div class="zeile mono"><span>ANFRAGE · ${k.kn}</span><span>${a2.partnerEntscheid === 'ja' ? 'ZUGESAGT' : a2.partnerEntscheid === 'nein' ? 'ABGELEHNT' : a2.status === 'erledigt' ? 'EINGETRAGEN' : 'OFFEN'}</span></div>
+        <b style="display:block;margin-top:4px">${esc(a2.bew ? a2.bew.kuenstler + ' · ' + k.name : k.name)}</b><div class="hinweis">${esc(a2.text)}</div>
+        ${a2.bew ? (() => { const kr = kriterien(a2.kunde, a2.bew), ok = kr.filter((x) => x[1]).length; return `<div class="karte" style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,.04)">
+          <div class="zeile"><span class="mono">PRÜFLISTE</span><b style="color:${ok === kr.length ? '#7FE0AE' : '#FFB37A'}">${ok} von ${kr.length} erfüllt</b></div>
+          ${kr.map(([t, j]) => `<div style="display:flex;gap:8px;margin-top:5px;font-size:14px"><span style="color:${j ? '#7FE0AE' : '#FF8A8D'}">${j ? '✓' : '✗'}</span><span>${esc(t)}</span></div>`).join('')}
+          <div class="hinweis" style="margin-top:8px">Hörer: ${HOERER[a2.bew.hoerer]} · Releases: ${RELEASES[a2.bew.releases]} · ${esc(a2.bew.label || 'ohne Label')} · ${a2.bew.engineer ? 'eigener Engineer' : 'ohne Engineer'}</div>
+          <div class="hinweis">${esc(a2.bew.link)}</div></div>`; })() : ''}
+        <div class="hinweis" style="margin-top:4px">Bisher bei CloudStudios: ${S.buchungen.filter((b) => b.kunde === a2.kunde && b.status === 'gebucht').length} Sessions · ${noShows(a2.kunde)}× nicht erschienen</div>
+        ${!a2.partnerEntscheid && a2.status === 'offen' ? `<div class="chips" style="margin-top:8px"><button class="primaer" data-s5ok="${a2.id}">Zusagen</button><button data-s5ok="${a2.id}" data-dauerhaft="1">Zusagen + dauerhaft freigeben</button><button data-s5nein="${a2.id}">Ablehnen</button></div>` : ''}</div>`; }).join('') || '<div class="hinweis">Keine Anfragen.</div>'}</div>
+    <div class="mono" style="margin-top:18px">DAUERHAFT FREIGEGEBEN</div>
+    <div class="hinweis" style="margin-top:4px">Diese Kunden buchen Studio 5 selbst in der App, ohne Anfrage. Sie bekommen bei jeder Buchung eine Push-Nachricht.</div>
+    <div class="liste" style="margin-top:8px">${S.s5frei.map((k) => `<div class="karte zeile" style="padding:10px 12px"><span><b>${esc(S.kunden[k].name)}</b><br><span class="hinweis">${S.kunden[k].kn} · ${S.buchungen.filter((b) => b.kunde === k && b.studio === 's5' && b.status === 'gebucht').length} Sessions in Studio 5</span></span><button data-s5weg="${k}">Entziehen</button></div>`).join('') || '<span class="hinweis">Noch niemand.</span>'}</div>`;
+  } else if (tab === 'kontakt') {
+    const R = [...P.studios.map((x) => [x, ST[x].name]), ['gemein', 'Küche & Chill-Area']];
+    const zr = S.zForm.raum || R[0][0], lb = letzteBuchungVor(zr);
+    inhalt = kopf('Kontakt', 'MITTEILUNGEN UND ZUSTAND') + `
+    <div class="mono" style="margin-top:14px">ZUSTAND MELDEN</div>
+    <div class="karte" style="margin-top:6px">
+      <div class="hinweis">Etwas kaputt, dreckig oder fehlt? Wir verknüpfen die Meldung automatisch mit der letzten Buchung im Raum.</div>
+      <form id="f-zustand" class="liste" style="margin-top:10px;gap:10px">
+        <label>Raum<select name="raum" data-zraum>${R.map(([id, l]) => `<option value="${id}" ${id === zr ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+        <div class="hinweis">Letzte Buchung davor: <b>${lb ? `${tagName(lb.tag)}, ${lb.von}–${lb.bis} Uhr · ${lb.kunde ? S.kunden[lb.kunde].kn : lb.kn || 'Walk-In'}` : 'keine gefunden'}</b></div>
+        <label>Was ist los?<textarea name="text" rows="3" placeholder="z. B. Kopfhörer-Kabel gerissen, Aschenbecher voll" style="border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);padding:10px;font-size:15px;color:var(--ink);font-family:inherit">${esc(S.zForm.text)}</textarea></label>
+        <label>Foto (optional)<input type="file" name="foto" accept="image/*" capture="environment"></label>
+        <button class="primaer" type="submit" style="min-height:52px">Meldung senden</button>
+      </form><div id="f-zustand-msg" class="hinweis" style="margin-top:8px" aria-live="polite"></div></div>
+    <div class="hinweis" style="margin-top:6px">Kundennamen sehen Sie nicht. CloudStudios klärt das mit dem Kunden.</div>
+    <div class="mono" style="margin-top:18px">MITTEILUNGEN MIT CLOUDSTUDIOS</div>
+    ${brettHTML(S.partner, S.partner === 'blackclouds' ? 'BlackClouds' : 'Basement Studios')}`;
+  }
+  if (S.pRaum) inhalt = raumSeite(S.pRaum, 'partner');
+  const NAV = [
+    ['uebersicht', 'Übersicht', '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'],
+    ['kalender', 'Kalender', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
+    ['blockieren', 'Blockieren', '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'],
+    ['abrechnung', 'Abrechnung', '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>'],
+    ['kontakt', 'Kontakt', '<path d="M4 4h16v12H8l-4 4z"/><path d="M8 9h8M8 12h5"/>'],
+    ...(S.partner === 'blackclouds' ? [['studio5', 'Studio 5', '<path d="M12 3l2.6 5.4 5.9.9-4.3 4.1 1 5.8L12 16.5 6.8 19.2l1-5.8L3.5 9.3l5.9-.9z"/>']] : [])
+  ];
+  return `<div class="handy"><div style="flex:1">${inhalt}</div>
+  <nav class="handynav">${NAV.map(([id, l, ikon]) => `<button class="${tab === id ? 'aktiv' : ''}" data-ptab="${id}" aria-current="${tab === id ? 'page' : 'false'}" style="position:relative;min-width:0;font-size:10.5px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ikon}</svg>${l}${id === 'kontakt' && S.brett.some((m) => m.partner === S.partner && m.neu && m.von === 'CloudStudios') ? '<span style="position:absolute;top:4px;right:14px;width:9px;height:9px;border-radius:50%;background:var(--gelb)"></span>' : ''}${id === 'studio5' && s5offen.length ? `<span style="position:absolute;top:2px;right:10px;min-width:18px;height:18px;border-radius:9px;background:var(--rot);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${s5offen.length}</span>` : ''}</button>`).join('')}</nav></div>`;
+}
+function regeln() {
+  return `<h1 style="font-size:clamp(26px,3vw,36px);padding-right:200px">Regeln und Prüfliste</h1><p class="hinweis">Das sind die Regeln, die in diesem Prototyp und in der Datenbank (Phase 1, 71 Tests) gleich laufen. Zum Durchklicken und Fehler finden.</p>
+  <div class="raster" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:12px">
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Buchen</h3><ul><li>Studio 1 und 3: 1 Credit/Std., Studio 4: 2, Studio 5: 4,5</li><li>Mindestens 2 Std., Ende spätestens 24:00</li><li>Wechselzeit inklusive: räumen bis :45 der letzten Stunde</li><li>Nur mit Deckung; sonst Vorschlag „reicht für X Std.“</li><li>Credits gehen sofort ab, älteste zuerst</li><li>Studio 5 nur per Bewerbung und Freigabe durch BlackClouds, außer der Kunde steht auf der Freigabeliste</li><li>Doppelbuchung ausgeschlossen, auch bei Mikrofonen</li></ul></div>
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Storno und Zugang</h3><ul><li>Mehr als 24 Std. vorher: Credits zurück</li><li>Danach: Credits bleiben abgezogen, Partner wird bezahlt</li><li>Ab 24 Std. vorher: verbindlich, Zugangscode in der App</li></ul></div>
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Credit-Arten</h3><ul><li>Paket: 3 Monate ab Zahlungseingang</li><li>Bonus: nur Studio 1 und 3</li><li>Mitglied: am Monatsersten, Rest verfällt am Monatsende</li><li>Basement-Pauschale: nur Studio 3</li><li>Label: nur Studio 1, bis Monatsende</li><li>PA 210 Family &amp; Friends: nur Studio 1, keine Partnerstudios</li><li>PA 220 CloudsMember: höchstens 30 Credits pro Monat in Partnerstudios (einstellbar)</li></ul></div>
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Extras</h3><ul><li>TLM 102 in jedem Studio inklusive</li><li>TLM 103 (1×): 1 Credit, Mitglieder 0</li><li>U87 (1×): 2 Credits, Mitglieder 1</li></ul></div>
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Veranstaltungen</h3><ul><li>Sperren Lounge und Studio 1 gemeinsam (rot)</li><li>Nur eintragbar, wenn beide frei sind</li></ul></div>
+    <div class="karte pruef"><h3 style="font-size:17px;margin-bottom:6px">Partner</h3><ul><li>BlackClouds: 14 €/Std. Studio 4, 35 €/Std. Studio 5</li><li>Basement: 5 € je CloudStudios-Credit + 50 % netto der Basement-Pauschalen + 50 % netto Walk-In</li><li>Partner sehen nur ihre Studios, keine Kundennamen (Basement sieht die eigenen Pauschalkunden)</li><li>Zustandsmeldungen hängen an der letzten Buchung im Raum</li><li>Partner bestätigen die Gutschrift in der App</li></ul></div>
+  </div>
+  <div class="karte" style="margin-top:14px"><h3 style="font-size:17px">Zum Ausprobieren</h3><ol class="pruef"><li>Kunde Anna: Studio 1 am Mi um 11 Uhr buchen. Kollision mit ihrer eigenen Buchung prüfen.</li><li>Kunde Ben (Basement-Pauschale): Studio 4 buchen. Es muss abgelehnt werden.</li><li>Kunde Tom: 8 Std. Studio 4 buchen. Vorschlag erscheint.</li><li>Intern: Walk-In bestätigen, dann Kunde-Ansicht prüfen (blau, ohne Namen „Belegt“).</li><li>Intern: Veranstaltung auf einen Tag legen, an dem Studio 1 belegt ist.</li><li>Kunde Olga: Termin heute Abend in Studio 4 stornieren (unter 24 Std.), dann Partner BlackClouds ansehen.</li><li>Kunde Anna: Paket anfragen, intern aufladen, Guthaben-Ring beobachten.</li></ol></div>`;
+}
+
+function devHTML() {
+  const sichten = [['intern', 'Intern · Team'], ['kunde', 'Kunde'], ['partner:blackclouds', 'Partner · BlackClouds (Andrews)'], ['partner:basement', 'Partner · Basement Studios'], ['regeln', 'Regeln & Prüfliste']];
+  const aktuell = S.sicht === 'partner' ? 'partner:' + S.partner : S.sicht;
+  const name = sichten.find((x) => x[0] === aktuell)[1];
+  const ikon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>';
+  const knopf = S.sicht !== 'regeln' && !S.devOffen
+    ? `<button class="knopf" data-devtoggle aria-expanded="false" aria-label="Ansicht wechseln (${name})" style="width:40px;padding:0;display:flex;align-items:center;justify-content:center">${ikon}</button>`
+    : `<button class="knopf" data-devtoggle aria-expanded="${!!S.devOffen}" style="display:flex;align-items:center;gap:6px">${ikon}${name} ${S.devOffen ? '▴' : '▾'}</button>`;
+  const tk = `<button class="knopf" data-testliste style="background:rgba(77,163,255,.25);border-color:rgba(77,163,255,.6)">▶ Test ${S.test.done.length}/${TESTS.length}</button>`;
+  if (!S.devOffen) return knopf + (S.test.aktiv ? '' : tk);
+  return `${knopf}
+  <div class="panel">
+    <label>Ansicht<select data-sichtwahl>${sichten.map(([id, l]) => `<option value="${id}" ${id === aktuell ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    ${S.sicht === 'kunde' ? `<label>Testkonto<select data-kundewahl>${Object.entries(S.kunden).map(([id, v]) => `<option value="${id}" ${id === S.kunde ? 'selected' : ''}>${v.name} · ${kontoTyp(v)}</option>`).join('')}</select></label>` : ''}
+    <div class="hinweis">Prototyp mit Beispieldaten · ${TAGE[0]} ${UHR} Uhr · Neuladen setzt alles zurück.</div>
+  </div>`;
+}
+const TESTS = [
+  ['Kunde', 'Tom (Paket 10): Studio 1 morgen ab 14 Uhr, 2 Std. buchen. Achten Sie auf den Hinweis „räumen bis :45“.', { sicht: 'kunde', kunde: 'tom', kTab: 'buchen', studio: 's1', bModus: 'studio', ftag: 1, start: 14, std: 2 }],
+  ['Kunde', 'Tom: im Shop Paket 40 in den Warenkorb, Widerruf-Häkchen setzen, bestellen.', { sicht: 'kunde', kunde: 'tom', kTab: 'shop' }],
+  ['Kunde', 'Tom: Studio 5 ist schon gewählt. Bewerbung ausfüllen und senden.', { sicht: 'kunde', kunde: 'tom', kTab: 'buchen', studio: 's5', bModus: 'studio', ftag: 5, start: 14, std: 3 }],
+  ['Kunde', 'Anna: Veranstaltung anfragen, z. B. Listening Session am Sonntag, und absenden.', { sicht: 'kunde', kunde: 'anna', kTab: 'buchen', bModus: 'event', ftag: 5 }],
+  ['Kunde', 'Anna: im Verlauf die Buchung von morgen stornieren. Unter 24 Std. vorher, also bleiben die Credits abgezogen.', { sicht: 'kunde', kunde: 'anna', kTab: 'verlauf' }],
+  ['Kunde', 'Paul (Family & Friends): Basement Studio 3 buchen. Muss abgelehnt werden.', { sicht: 'kunde', kunde: 'paul', kTab: 'buchen', studio: 's3', bModus: 'studio', ftag: 2, start: 16, std: 2 }],
+  ['Kunde', 'Victor (PA 220): Studio 4, 10 Std. buchen. Die 30-Credit-Grenze muss greifen.', { sicht: 'kunde', kunde: 'vic', kTab: 'buchen', studio: 's4', bModus: 'studio', ftag: 4, start: 8, std: 10 }],
+  ['BlackClouds', 'Andrews: Studio 5, Toms Bewerbung mit Prüfliste ansehen, „Zusagen + dauerhaft freigeben“.', { sicht: 'partner', partner: 'blackclouds', pTab: 'studio5' }],
+  ['BlackClouds', 'Andrews: Studio 4 für Eigennutzung blockieren, z. B. Freitag 10–14 Uhr.', { sicht: 'partner', partner: 'blackclouds', pTab: 'blockieren' }],
+  ['BlackClouds', 'Andrews: unter Kontakt einen Zustand für Studio 4 melden, z. B. „Kabel defekt“.', { sicht: 'partner', partner: 'blackclouds', pTab: 'kontakt' }],
+  ['BlackClouds', 'Andrews: Abrechnung öffnen und die Gutschrift bestätigen.', { sicht: 'partner', partner: 'blackclouds', pTab: 'abrechnung' }],
+  ['Basement', 'Basement: Übersicht mit Pauschalkunde Ben ansehen, dann unter Kontakt eine Mitteilung an CloudStudios schreiben.', { sicht: 'partner', partner: 'basement', pTab: 'uebersicht' }],
+  ['Intern', 'Dashboard: „Neu für dich“ durchgehen. Alle Meldungen aus den Schritten davor müssen da sein.', { sicht: 'intern', iTab: 'dashboard' }],
+  ['Intern', 'Anfragen: Toms Bestellung „Bezahlt · ausführen“, Toms Studio 5 eintragen, Annas Veranstaltung eintragen, Zustandsmeldung erledigen.', { sicht: 'intern', iTab: 'anfragen' }],
+  ['Intern', 'Eintragen: Walk-In für Studio 1 anlegen (Fantasiename), danach unter Anfragen „Zahlung bestätigen“.', { sicht: 'intern', iTab: 'eintragen', iArt: 'walkin' }],
+  ['Intern', 'Kalender: einen heutigen Termin antippen und „nicht erschienen“ ausprobieren.', { sicht: 'intern', iTab: 'kalender' }],
+  ['Intern', 'Mehr › Konten: ein neues Mitglied PA 203 anlegen (Fantasiename, Fantasie-Mail).', { sicht: 'intern', iTab: 'mehr', mTab: 'konten', kontoArt: 'mitglied' }],
+  ['Intern', 'Mehr › Mitteilungen: Basement antworten.', { sicht: 'intern', iTab: 'mehr', mTab: 'mitteilungen', brettZiel: 'basement' }],
+  ['Intern', 'Mehr › Einstellungen › Rechte: bei „Geld & Kontrolle“ das Recht „Credits aufladen“ einschalten.', { sicht: 'intern', iTab: 'mehr', mTab: 'einstellungen', eTab: 'rechte' }],
+  ['Kunde', 'Tom: Studio 5 ist jetzt ohne Bewerbung buchbar. Guthaben prüfen (Paket 40 ist drauf) und 2 Std. selbst buchen.', { sicht: 'kunde', kunde: 'tom', kTab: 'buchen', studio: 's5', bModus: 'studio', ftag: 6, start: 12, std: 2 }]
+];
+function sprung(z) {
+  S.akte = null; S.detail = null; S.iRaum = null; S.pRaum = null; S.devOffen = false; S.einladung = null;
+  for (const k of ['sicht', 'kunde', 'partner', 'kTab', 'pTab', 'iTab', 'mTab', 'eTab', 'iArt', 'bModus', 'kontoArt', 'brettZiel']) if (z[k] !== undefined) S[k] = z[k];
+  if (z.studio) S.form.studio = z.studio;
+  if (z.ftag !== undefined) { S.ftag = z.ftag; S.form.tag = z.ftag; }
+  if (z.start) S.form.start = z.start; if (z.std) S.form.std = z.std;
+  S.form.tlm103 = S.form.u87 = false;
+  try { location.hash = S.sicht === 'partner' ? 'partner-' + S.partner : S.sicht; } catch (_) {}
+  render(); window.scrollTo(0, 0);
+}
+function testHTML() {
+  const T = S.test, n = TESTS.length, fertig = T.done.length;
+  let h = '';
+  if (T.aktiv && T.i < n) {
+    const [b, text] = TESTS[T.i];
+    h += `<div class="banner" role="status"><div class="zeile mono" style="color:#9CCBFF"><span>TESTLAUF · ${T.i + 1}/${n} · ${esc(b.toUpperCase())}</span><button data-testliste style="min-height:30px;padding:2px 10px;font-size:12px">Liste</button></div>
+      <div style="margin-top:4px">${esc(text)}</div>
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="primaer" data-testok style="min-height:38px;padding:4px 12px;font-size:13px;flex:1.4">✓ Erledigt</button><button data-testhin="${T.i}" style="min-height:38px;padding:4px 10px;font-size:13px;flex:1">Nochmal</button><button data-testpause style="min-height:38px;padding:4px 10px;font-size:13px;flex:1">Pause</button></div></div>`;
+  } else if (T.aktiv) {
+    h += `<div class="banner" role="status"><b>Testlauf geschafft: ${fertig} von ${n} Schritten.</b><div class="hinweis" style="margin-top:4px">Neuladen setzt alles zurück, dann geht es von vorn.</div><div class="chips" style="margin-top:8px"><button data-testliste style="min-height:36px">Liste ansehen</button><button data-testpause style="min-height:36px">Schließen</button></div></div>`;
+  }
+  if (S.testListe) {
+    let bereich = '';
+    h += `<div class="blatt" data-testzu><div role="dialog" aria-label="Testlauf"><div class="zeile"><div><div class="mono">TESTLAUF · ALLE BEREICHE</div><h3 style="font-size:22px;margin-top:2px">${fertig} von ${n} erledigt</h3></div><button data-testzu aria-label="Schließen" style="width:44px;padding:0">✕</button></div>
+      <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:10px"><div style="width:${Math.round(fertig / n * 100)}%;height:8px;border-radius:4px;background:var(--gelb)"></div></div>
+      <div class="hinweis" style="margin-top:8px">Am besten der Reihe nach, die Schritte bauen aufeinander auf. „Los“ springt in die richtige Ansicht, oben steht dann, was zu tun ist.</div>
+      ${TESTS.map(([b, text], i) => { const kopf = b !== bereich ? `<div class="mono" style="margin-top:14px">${esc(b.toUpperCase())}</div>` : ''; bereich = b; const ok = T.done.includes(i);
+        return kopf + `<div class="karte" style="display:flex;gap:10px;align-items:center;padding:10px 12px;margin-top:6px;${ok ? 'opacity:.55' : i === T.i && T.aktiv ? 'border-color:rgba(77,163,255,.6)' : ''}"><span style="width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;${ok ? 'background:var(--gruen);color:#06210F' : 'border:1px solid rgba(255,255,255,.3)'}">${ok ? '✓' : i + 1}</span><span style="flex:1;font-size:14px">${esc(text)}</span><button data-testhin="${i}" style="min-height:40px;padding:4px 12px">${ok ? 'Nochmal' : 'Los'}</button></div>`; }).join('')}
+      </div></div>`;
+  }
+  return h;
+}
+function render() {
+  app.classList.toggle('vollbild', S.sicht !== 'regeln');
+  app.classList.toggle('testlauf', !!S.test.aktiv && S.sicht !== 'regeln');
+  app.innerHTML = S.sicht === 'intern' ? intern() : S.sicht === 'kunde' ? kunde() : S.sicht === 'partner' ? partner() : regeln();
+  document.getElementById('dev').innerHTML = devHTML();
+  document.getElementById('test').innerHTML = testHTML();
+}
+function meldung(id, text, gut) { const el = document.getElementById(id); if (el) { el.textContent = text; el.style.color = gut ? '#7FE0AE' : '#FF8A8D'; } }
+
+document.addEventListener('click', (e) => {
+  const az = e.target.closest('[data-aktezu]');
+  if (az && (e.target === az || az.tagName === 'BUTTON')) { S.akte = null; render(); return; }
+  const dz = e.target.closest('[data-detailzu]');
+  if (dz && (e.target === dz || dz.tagName === 'BUTTON')) { S.detail = null; render(); return; }
+  const dt = e.target.closest('[data-detail]');
+  if (dt && !e.target.closest('button')) { S.detail = +dt.dataset.detail; render(); return; }
+  const tz = e.target.closest('[data-testzu]');
+  if (tz && (e.target === tz || tz.tagName === 'BUTTON')) { S.testListe = false; render(); return; }
+  const t = e.target.closest('button'); if (!t) return;
+  if ('testliste' in t.dataset) { S.testListe = !S.testListe; S.devOffen = false; render(); return; }
+  if (t.dataset.testhin !== undefined) { const i = +t.dataset.testhin; S.test.aktiv = true; S.test.i = i; S.testListe = false; sprung(TESTS[i][2]); return; }
+  if ('testok' in t.dataset) { const T = S.test; if (!T.done.includes(T.i)) T.done.push(T.i); T.i = [...Array(TESTS.length).keys()].find((k) => !T.done.includes(k)) ?? TESTS.length; if (T.i < TESTS.length) sprung(TESTS[T.i][2]); else render(); return; }
+  if ('testpause' in t.dataset) { S.test.aktiv = false; render(); return; }
+  if (S.detail && (t.dataset.istorno || t.dataset.kulanz || t.dataset.zahlung)) S.detail = null;
+  const d = t.dataset;
+  if ('devtoggle' in d) { S.devOffen = !S.devOffen; render(); return; }
+  if (d.ansicht) { const [k, a] = d.ansicht.split(':'); S.ansicht[k] = a; render(); return; }
+  for (const k of ['tag', 'ftag', 'pTag']) { const v = t.getAttribute('data-k' + k); if (v !== null) { S[k] = Math.max(0, Math.min(TAGE.length - 1, +v)); if (k === 'ftag') S.form.tag = S[k]; if (d.zu) S.ansicht[k] = d.zu; render(); return; } }
+  if (d.ktab) { S.kTab = d.ktab; render(); return; }
+  if (d.fstudio) { S.form.studio = d.fstudio; render(); return; }
+  if (d.fextra) { S.form[d.fextra] = !S.form[d.fextra]; render(); return; }
+  if (d.zahlung) { const b = S.buchungen.find((x) => x.id === +d.zahlung); b.status = 'gebucht'; log('Team', `Zahlung bestätigt: ${b.gast}, ${ST[b.studio].name} ${TAGE[b.tag]}`); render(); return; }
+  if (d.aufladen) { const a = S.anfragen.find((x) => x.id === +d.aufladen); S.posten.push({ id: neueId(), kunde: a.kunde, art: 'Paket ' + a.menge, credits: a.menge, bis: '24.02.2027', bisAbs: 9e9, nur: null, rn: 'RN-CS-' + (950 + S.posten.length) }); a.status = 'erledigt'; log('Team', `${a.menge} Credits für ${S.kunden[a.kunde].name} aufgeladen`); if (S.kunde === a.kunde) S.toast = `${a.menge} Credits gutgeschrieben.`; render(); return; }
+  if (d.s5) { const a = S.anfragen.find((x) => x.id === +d.s5); const r = creditsBuchen({ kunde: a.kunde, studio: 's5', tag: a.tag, start: a.start, std: a.std, durchTeam: true }); if (typeof r === 'string') { alertKarte(t, r.startsWith('ZU_WENIG') ? `Zu wenig Credits (reicht für ${r.split(':')[1]} Std.).` : r === 'SLOT_BELEGT' ? 'Studio 5 ist dann schon belegt.' : r); return; } a.status = 'erledigt'; render(); return; }
+  if (d.ablehnen || d.erledigt) { const a = S.anfragen.find((x) => x.id === +(d.ablehnen || d.erledigt)); a.status = 'erledigt'; log('Team', `Anfrage ${d.ablehnen ? 'abgelehnt' : 'erledigt'}: ${a.text}`); render(); return; }
+  if ('kbuchen' in d) {
+    const f = S.form, ex = ['tlm103', 'u87'].filter((x) => f[x]);
+    const r = creditsBuchen({ kunde: S.kunde, studio: f.studio, tag: f.tag, start: f.start, std: f.std, extras: ex });
+    if (typeof r === 'string') {
+      const el = document.getElementById('k-msg'); el.className = 'karte fehler'; el.style.marginTop = '10px';
+      if (r.startsWith('ZU_WENIG')) { const m = +r.split(':')[1]; el.innerHTML = m >= 2 ? `Ihr Guthaben reicht für ${fmt(m)} Std. <button class="primaer" data-aufmax="${m}" style="margin-left:6px">${fmt(m)} Std. wählen</button>` : 'Ihr Guthaben reicht nicht. Bitte Credits nachladen.'; }
+      else el.textContent = r === 'SLOT_BELEGT' ? 'Dieser Zeitraum ist schon belegt.' : r;
+      return;
+    }
+    S.kTab = 'start'; toast(`Buchung bestätigt: ${ST[f.studio].name} ${TAGE[f.tag]} ${f.start}–${f.start + f.std} Uhr. Bitte bis ${f.start + f.std - 1}:45 räumen.`); return;
+  }
+  if (d.istorno) {
+    const b = S.buchungen.find((x) => x.id === +d.istorno);
+    if (b.gruppe) { S.buchungen.filter((x) => x.gruppe === b.gruppe).forEach((x) => { x.status = 'storniert'; x.stornoVon = 'Team'; x.stornoAm = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date()); }); log('Team', `Veranstaltung ${TAGE[b.tag]} storniert, Lounge + Studio 1 wieder frei`); }
+    else if (b.credits) { const ok = stornieren(b.id, 'Team'); if (b.kunde === S.kunde) S.toast = ok ? 'Ihre Buchung wurde storniert, Credits sind zurück.' : 'Ihre Buchung wurde storniert.'; }
+    else { b.status = 'storniert'; b.stornoVon = 'Team'; b.stornoAm = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date()); log('Team', `${ST[b.studio].name} ${TAGE[b.tag]} ${b.von}–${b.bis} storniert (${b.gast || b.grund || 'Blockierung'})`); }
+    render(); return;
+  }
+  if (d.kulanz) {
+    const b = S.buchungen.find((x) => x.id === +d.kulanz);
+    b.status = 'storniert'; b.erstattet = true; b.stornoVon = 'Cem (Kulanz)'; b.stornoAm = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date()); log('Cem (Admin)', `Kulanz: ${fmt(b.credits)} Credits an ${S.kunden[b.kunde].name} zurück`);
+    if (b.kunde === S.kunde) S.toast = 'Ihre Buchung wurde storniert. Aus Kulanz sind die Credits zurück.'; render(); return;
+  }
+  if (d.pfrei) { const b = S.buchungen.find((x) => x.id === +d.pfrei); b.status = 'storniert'; b.stornoVon = PARTNER[S.partner].name; b.stornoAm = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date()); log(PARTNER[S.partner].name, `${ST[b.studio].name} ${TAGE[b.tag]} ${b.von}–${b.bis} freigegeben`); render(); meldung('f-partner-msg', 'Freigegeben. Der Slot ist wieder buchbar.', true); return; }
+  if (d.galerie) {
+    const g = document.getElementById('galerie'); if (!g) return;
+    const bilder = [...g.children], mitte = g.scrollLeft + g.clientWidth / 2;
+    let jetzt = 0, best = Infinity;
+    bilder.forEach((f, i) => { const m = f.offsetLeft - 0 + f.offsetWidth / 2, abst = Math.abs(m - mitte); if (abst < best) { best = abst; jetzt = i; } });
+    const ziel = (jetzt + +d.galerie + bilder.length) % bilder.length;
+    const f = bilder[ziel];
+    g.scrollTo({ left: f.offsetLeft - 0 - (g.clientWidth - f.offsetWidth) / 2, behavior: 'smooth' });
+    return;
+  }
+  if ('raumzu' in d && !d.ptab && !d.schnell) { if (S.sicht === 'kunde') S.kTab = 'start'; else if (S.sicht === 'intern') S.iRaum = null; else S.pRaum = null; render(); return; }
+  if ('raumzu' in d) { S.iRaum = null; S.pRaum = null; }
+  if (d.raum) { if (S.sicht === 'intern') S.iRaum = d.raum; else if (S.sicht === 'partner') S.pRaum = d.raum; else { S.raum = d.raum; S.kTab = 'raum'; } render(); window.scrollTo(0, 0); return; }
+  if (d.raumbuchen) { if (d.raumbuchen === 'lounge') S.bModus = 'event'; else { S.bModus = 'studio'; S.form.studio = d.raumbuchen; } S.kTab = 'buchen'; render(); window.scrollTo(0, 0); return; }
+  if (d.ptab) { S.pRaum = null; S.pTab = d.ptab; if (d.ptab === 'kontakt') setTimeout(() => S.brett.forEach((m) => { if (m.partner === S.partner && m.von === 'CloudStudios') m.neu = false; }), 0); render(); window.scrollTo(0, 0); return; }
+  if (d.etab) { S.eTab = d.etab; render(); return; }
+  if (d.recht) { const [r, x] = d.recht.split(':'), l = S.rechte[r]; S.rechte[r] = l.includes(x) ? l.filter((y) => y !== x) : [...l, x]; log('Cem (Admin)', `Recht „${RECHTE.find((y) => y[0] === x)[1]}“ für ${ROLLEN[r].name} ${S.rechte[r].includes(x) ? 'an' : 'aus'}`); render(); return; }
+  if (d.kontoart) { S.kontoArt = d.kontoart; S.einladung = null; render(); return; }
+  if (d.sperren) { const k = d.sperren, weg = S.gesperrt.includes(k); S.gesperrt = weg ? S.gesperrt.filter((x) => x !== k) : [...S.gesperrt, k]; log('Cem (Admin)', `Konto ${S.kunden[k].kn} ${weg ? 'entsperrt' : 'gesperrt'}`); render(); return; }
+  if (d.s5weg) { S.s5frei = S.s5frei.filter((k) => k !== d.s5weg); log('BlackClouds', `Studio-5-Freigabe entzogen: ${S.kunden[d.s5weg].kn}`); teamMeldung(`Studio-5-Freigabe entzogen · ${S.kunden[d.s5weg].kn}`, 'Kunde kann Studio 5 nur noch anfragen.'); render(); return; }
+  if ('gprueft' in d) { S.geprueft[S.partner] = TAGE[0] + ' ' + UHR; log(PARTNER[S.partner].name, 'Gutschrift geprüft und bestätigt'); teamMeldung(`Gutschrift bestätigt · ${PARTNER[S.partner].name}`, 'Kann zum Monatsende überwiesen werden.'); render(); return; }
+  if (d.brettziel) { S.brettZiel = d.brettziel; S.brett.forEach((m) => { if (m.partner === d.brettziel && m.von !== 'CloudStudios') m.neu = false; }); render(); return; }
+  if (d.s5ok || d.s5nein) { const a2 = S.anfragen.find((x) => x.id === +(d.s5ok || d.s5nein)); a2.partnerEntscheid = d.s5ok ? 'ja' : 'nein'; if (d.s5ok && d.dauerhaft && !S.s5frei.includes(a2.kunde)) { S.s5frei.push(a2.kunde); log('BlackClouds', `${S.kunden[a2.kunde].kn} dauerhaft für Studio 5 freigegeben`); } log('BlackClouds', `Studio-5-Anfrage ${S.kunden[a2.kunde].kn} ${d.s5ok ? 'zugesagt' : 'abgelehnt'}`); teamMeldung(`Studio 5 ${d.s5ok ? 'zugesagt' : 'abgelehnt'} · ${S.kunden[a2.kunde].kn}`, `BlackClouds hat entschieden: ${a2.text}`); if (!d.s5ok) a2.status = 'erledigt'; render(); return; }
+  if (d.akte) { S.akte = d.akte; render(); return; }
+  if (d.mtab) { S.mTab = d.mtab; if (d.mtab === 'mitteilungen') setTimeout(() => S.brett.forEach((m) => { if (m.partner === S.brettZiel && m.von !== 'CloudStudios') m.neu = false; }), 0); render(); return; }
+  if (d.noshow) { const b = S.buchungen.find((x) => x.id === +d.noshow); b.noShow = !b.noShow; log('Team', `${b.noShow ? 'Nicht erschienen markiert' : 'Markierung entfernt'}: ${b.kunde ? S.kunden[b.kunde].name : b.gast}, ${TAGE[b.tag]}`); render(); return; }
+  if ('export' in d) { const el = document.getElementById('export-msg'); if (el) el.textContent = 'In der echten App kommt hier die Excel-Datei. Im Prototyp ist der Download gesperrt.'; return; }
+  if ('gelesen' in d) { S.meldungen.forEach((m) => { m.neu = false; }); render(); return; }
+  if (d.ikal) { S.iKal = d.ikal; render(); return; }
+  if (d.itab) { S.iRaum = null; S.iTab = d.itab; if (d.anker) S.mTab = d.anker; render(); window.scrollTo(0, 0); return; }
+  if (d.iart) { S.iArt = d.iart; render(); return; }
+  if (d.schnell) { S.iArt = d.schnell; S.iTab = 'eintragen'; render(); window.scrollTo(0, 0); return; }
+  if (d.korbplus) { S.korb[d.korbplus] = (S.korb[d.korbplus] || 0) + 1; render(); return; }
+  if (d.korbminus) { S.korb[d.korbminus] = Math.max(0, (S.korb[d.korbminus] || 0) - 1); render(); return; }
+  if (d.merk) { S.merkliste[d.merk] = !S.merkliste[d.merk]; if (S.merkliste[d.merk]) toast('Wir melden uns, sobald es verfügbar ist.'); else render(); return; }
+  if ('bestellen' in d) {
+    const posten = Object.entries(S.korb).filter(([, n]) => n > 0).map(([id, n]) => ({ id, n }));
+    const summe = posten.reduce((x, p) => x + ARTIKEL[p.id].preis * p.n, 0);
+    S.anfragen.push({ id: neueId(), art: 'bestellung', kunde: S.kunde, status: 'offen', posten, text: posten.map((p) => `${p.n}× ${ARTIKEL[p.id].name}`).join(', ') + ' · ' + eur(summe) });
+    log(S.kunden[S.kunde].name, 'Shop-Bestellung angefragt (' + eur(summe) + ')'); teamMeldung(`Neue Shop-Bestellung · ${S.kunden[S.kunde].kn}`, eur(summe));
+    S.korb = {}; S.widerruf = false; toast('Bestellung angefragt. Rechnung und Zahlungsdaten folgen.'); return;
+  }
+  if (d.bestellok) {
+    const a = S.anfragen.find((x) => x.id === +d.bestellok), codes = [];
+    for (const p of a.posten) {
+      const art = ARTIKEL[p.id];
+      for (let i = 0; i < p.n; i++) {
+        if (p.id.startsWith('p')) S.posten.push({ id: neueId(), kunde: a.kunde, art: 'Paket ' + art.credits, credits: art.credits, bis: '3 Monate ab heute', bisAbs: 90 * 24, nur: null, rn: 'RN-CS-' + (960 + S.nr % 40) });
+        else { const code = 'CS-GIFT-' + Math.random().toString(36).slice(2, 6).toUpperCase(); S.gutscheine.push({ code, credits: art.credits, eingeloest: false, nur: ['s1'] }); codes.push(code); }
+      }
+    }
+    a.status = 'erledigt'; log('Team', `Bestellung ausgeführt für ${S.kunden[a.kunde].name}${codes.length ? ' · Gutscheincodes ' + codes.join(', ') : ''}`);
+    if (a.kunde === S.kunde) S.toast = codes.length ? 'Zahlung erhalten. Ihre Gutscheincodes: ' + codes.join(', ') : 'Zahlung erhalten. Ihre Credits sind gutgeschrieben.'; render(); return;
+  }
+  if (d.bmodus) { S.bModus = d.bmodus; render(); return; }
+  if (d.eart) { S.eform.art = d.eart; S.eform.getraenk = Math.min(S.eform.getraenk, EVENTS[d.eart].getraenke.length - 1); S.eform.plus = 0; S.eform.camp = 0; if (d.eart === 'camp') S.eform.start = Math.min(S.eform.start, 12); render(); return; }
+  if (d.egetraenk) { S.eform.getraenk = +d.egetraenk; render(); return; }
+  if ('esnacks' in d) { S.eform.snacks = !S.eform.snacks; render(); return; }
+  if ('eanfrage' in d) {
+    const e = S.eform, k = S.kunden[S.kunde], p = eventPreis(e, !!k.mitglied), E = EVENTS[e.art], tag = S.form.tag;
+    S.anfragen.push({ id: neueId(), art: 'event', kunde: S.kunde, status: 'offen', tag, start: e.start, ende: e.start + p.dauer, camp: e.camp, eventArt: e.art,
+      text: `${E.name}, ${TAGE[tag]} ${e.start}–${e.start + p.dauer} Uhr, ${p.gaeste} Gäste, ca. ${eur(p.gesamt)}${e.notiz ? ' · ' + e.notiz : ''}` });
+    log(k.name, `Veranstaltungsanfrage: ${E.name} ${TAGE[tag]}`); teamMeldung(`Neue Veranstaltungsanfrage · ${k.kn}`, `${E.name} · ${TAGE[tag]} ${e.start} Uhr`);
+    S.bModus = 'studio'; S.kTab = 'start'; toast('Anfrage gesendet. Wir melden uns mit einem Angebot.'); return;
+  }
+  if (d.eventok) {
+    const a = S.anfragen.find((x) => x.id === +d.eventok);
+    const fehler = ereignisEintragen(a.tag, a.start, a.ende, `${EVENTS[a.eventArt].name} · ${S.kunden[a.kunde].kn}`);
+    if (fehler) { alertKarte(t, fehler); return; }
+    if (a.eventArt === 'camp' && a.camp) for (const r of a.camp === 2 ? ['s3', 's4'] : ['s3']) if (!belegt(r, a.tag, a.start, a.ende)) S.buchungen.push({ id: neueId(), studio: r, tag: a.tag, von: a.start, bis: a.ende, status: 'geschlossen', grund: 'Songwriter Camp · ' + S.kunden[a.kunde].kn, credits: 0, extras: [] });
+    a.status = 'erledigt'; if (a.kunde === S.kunde) S.toast = 'Ihre Veranstaltung ist vorgemerkt. Das Angebot kommt per Nachricht.'; render(); return;
+  }
+  if (d.aufmax) { S.form.std = +d.aufmax; render(); return; }
+  if ('s5anfrage' in d) { const f = S.form; S.anfragen.push({ id: neueId(), art: 's5', kunde: S.kunde, text: `Studio 5: ${TAGE[f.tag]}, ${f.start}–${f.start + f.std} Uhr`, status: 'offen', tag: f.tag, start: f.start, std: f.std }); log(S.kunden[S.kunde].name, 'Studio-5-Anfrage gesendet'); teamMeldung(`Studio-5-Anfrage · ${S.kunden[S.kunde].kn}`, `${TAGE[f.tag]} ${f.start}:00 · ${f.std} Std.`); toast('Anfrage gesendet. Unser Team meldet sich.'); return; }
+  if (d.kstorno) { const ok = stornieren(+d.kstorno, S.kunden[S.kunde].name);
+    { const b = S.buchungen.find((x) => x.id === +d.kstorno), k = S.kunden[S.kunde]; teamMeldung(`Storno: ${k.name} · ${k.kn}`, `${ST[b.studio].name} · ${TAGE[b.tag]} ${b.von}–${b.bis} Uhr · ${ok ? 'Credits zurück' : 'unter 24 Std., Credits bleiben'} · Slot ist wieder frei`, b.id); } toast(ok ? 'Storniert. Credits wurden zurückgebucht.' : 'Storniert. Unter 24 Std. vorher bleiben die Credits abgezogen.'); return; }
+  if (d.paket) { S.anfragen.push({ id: neueId(), art: 'paket', kunde: S.kunde, text: `Paket ${d.paket} angefragt`, menge: +d.paket, status: 'offen' }); log(S.kunden[S.kunde].name, `Paket ${d.paket} angefragt`); toast('Anfrage gesendet. Sie bekommen Angebot und Zahlungsdaten.'); return; }
+  if ('problem' in d) { S.anfragen.push({ id: neueId(), art: 'problem', kunde: S.kunde, text: 'Kopfhörer links ohne Ton (Foto anbei)', status: 'offen' }); toast('Danke, das Team ist informiert.'); return; }
+});
+function alertKarte(btn, text) { const k = document.createElement('div'); k.className = 'hinweis'; k.style.color = '#FF8A8D'; k.textContent = text; btn.parentElement.after(k); }
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.matches('[data-suche]')) { S.suche = t.value; const pos = t.selectionStart; render(); const n = document.querySelector('[data-suche]'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} } }
+  if (t.matches('[data-notiz]')) S.kunden[t.dataset.notiz].notiz = t.value;
+  if (t.matches('[data-code]')) { S.codes[+t.dataset.code] = t.value.trim(); t.style.borderColor = t.value.trim() ? '' : 'rgba(255,90,95,.5)'; }
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.matches('[data-sichtwahl]')) { if (t.value === 'intern') { const n = S.meldungen.filter((m) => m.neu); if (n.length) { S.iPush = n[0].titel + (n.length > 1 ? ` (+${n.length - 1} weitere)` : ''); setTimeout(() => { S.iPush = null; render(); }, 3800); } } if (t.value.startsWith('partner:')) { S.sicht = 'partner'; S.partner = t.value.split(':')[1]; S.pTab = 'uebersicht'; } else S.sicht = t.value; S.devOffen = false; try { location.hash = t.value.replace(':', '-'); } catch (_) {} window.scrollTo(0, 0); render(); }
+  if (t.matches('[data-kundewahl]')) { S.kunde = t.value; S.form.tlm103 = S.form.u87 = false; render(); }
+  if (t.matches('[data-partnerwahl]')) { S.partner = t.value; if (t.value !== 'blackclouds' && S.pTab === 'studio5') S.pTab = 'uebersicht'; render(); }
+  if (t.matches('[data-einst]')) { S.einst[t.dataset.einst] = Math.max(0, +t.value || 0); log('Cem (Admin)', `Einstellung ${t.dataset.einst} = ${t.value}`); render(); }
+  if (t.matches('[data-einstbox]')) { S.einst[t.dataset.einstbox] = t.checked; render(); }
+  if (t.matches('[data-rollewahl]')) { S.rolleWahl = t.value; render(); }
+  if (t.matches('[data-zraum]')) { S.zForm.raum = t.value; const ta = document.querySelector('#f-zustand textarea'); if (ta) S.zForm.text = ta.value; render(); }
+  if (t.matches('[data-widerruf]')) { S.widerruf = t.checked; render(); }
+  if (t.matches('[data-estart]')) { S.eform.start = +t.value; render(); }
+  if (t.matches('[data-eplus]')) { S.eform.plus = +t.value; render(); }
+  if (t.matches('[data-ecamp]')) { S.eform.camp = +t.value; render(); }
+  if (t.matches('[data-egaeste]')) { S.eform.gaeste = Math.max(1, +t.value || 1); render(); }
+  if (t.matches('[data-enotiz]')) { S.eform.notiz = t.value; }
+  if (t.matches('[data-fstart]')) { S.form.start = +t.value; render(); }
+  if (t.matches('[data-fstd]')) { S.form.std = +t.value; render(); }
+});
+document.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target), g = (k) => f.get(k);
+  if (e.target.id === 'f-intern') {
+    const art = g('art'), studio = g('studio'), tag = +g('tag'), start = +g('start'), std = +g('std'), name = String(g('name') || '').trim();
+    let fehler = null;
+    if (art === 'walkin') {
+      if (!name) fehler = 'Bitte Namen eintragen.';
+      else if (belegt(studio, tag, start, start + std) || (studio === 's1' && belegt('lounge', tag, start, start + std))) fehler = 'Slot ist belegt.';
+      else { S.buchungen.push({ id: neueId(), studio, tag, von: start, bis: start + std, status: 'angefragt', gast: name, kn: String(g('kn') || '').trim().toUpperCase() || null, walkin: true, credits: 0, preis: std >= 8 ? 120 : 60, extras: [], reserviertBis: Math.max(JETZT + 1, abs(tag, start) - 24), angebot: 'AN-CS-' + (510 + S.nr % 50) }); log('Team', `Walk-In-Anfrage ${name}, ${ST[studio].name} ${TAGE[tag]}`); }
+    } else if (art === 'credits') {
+      const r = creditsBuchen({ kunde: g('kunde'), studio, tag, start, std, durchTeam: true });
+      if (typeof r === 'string') fehler = r.startsWith('ZU_WENIG') ? `Zu wenig Credits, reicht für ${r.split(':')[1]} Std.` : r === 'SLOT_BELEGT' ? 'Slot ist belegt.' : r;
+    } else if (art === 'block') {
+      if (belegt(studio, tag, start, start + std)) fehler = 'Slot ist belegt.';
+      else { S.buchungen.push({ id: neueId(), studio, tag, von: start, bis: start + std, status: 'blockiert', grund: name || 'Blockiert', credits: 0, extras: [] }); log('Team', `${ST[studio].name} ${TAGE[tag]} blockiert`); }
+    } else {
+      fehler = ereignisEintragen(tag, start, Math.min(24, start + std), name || 'Veranstaltung');
+    }
+    if (fehler) { meldung('f-intern-msg', fehler, false); return; }
+    S.tag = tag; render(); meldung('f-intern-msg', 'Eingetragen.', true);
+  }
+  if (e.target.id === 'f-gutschein') {
+    const code = String(g('code') || '').trim().toUpperCase(), gs = S.gutscheine.find((x) => x.code === code);
+    if (!gs) { meldung('g-msg', 'Dieser Code ist ungültig.', false); return; }
+    if (gs.eingeloest) { meldung('g-msg', 'Dieser Gutschein wurde schon eingelöst.', false); return; }
+    gs.eingeloest = true; S.posten.push({ id: neueId(), kunde: S.kunde, art: 'Gutschein ' + gs.credits + ' Std.', credits: gs.credits, bis: '3 Monate ab heute', bisAbs: 90 * 24, nur: gs.nur || ['s1'], rn: code });
+    log(S.kunden[S.kunde].name, `Gutschein ${code} eingelöst (${gs.credits} Credits)`); toast(`${gs.credits} Credits gutgeschrieben, gültig für Studio 1.`); return;
+  }
+  if (e.target.id === 'f-s5') {
+    const fm = S.form, start = +g('start'), std = +g('std');
+    const bew = { kuenstler: String(g('kuenstler')).trim(), link: String(g('link')).trim(), hoerer: +g('hoerer'), releases: +g('releases'), label: String(g('label') || '').trim(), projekt: String(g('projekt')).trim(), engineer: !!g('engineer'), regeln: !!g('regeln') };
+    S.bewerbungen[S.kunde] = bew;
+    S.anfragen.push({ id: neueId(), art: 's5', kunde: S.kunde, text: `Studio 5: ${TAGE[fm.tag]}, ${start}–${start + std} Uhr · ${bew.projekt}`, status: 'offen', tag: fm.tag, start, std, bew });
+    log(S.kunden[S.kunde].name, 'Bewerbung Studio 5 gesendet'); teamMeldung(`Studio-5-Bewerbung · ${S.kunden[S.kunde].kn}`, `${bew.kuenstler} · ${TAGE[fm.tag]} ${start}:00 · ${std} Std.`);
+    toast('Bewerbung gesendet. BlackClouds entscheidet, wir melden uns.'); return;
+  }
+  if (e.target.id === 'f-pauschale') {
+    const name = String(g('name') || '').trim(), cr = +g('cr'), brutto = +g('brutto'), nur = ['s1', 's3', 's4', 's5'].filter((x) => g('nur_' + x)), art = g('art');
+    if (!name || !cr || !brutto || !nur.length) { meldung('f-pauschale-msg', 'Name, Credits, Preis und mindestens ein Studio angeben.', false); return; }
+    if (art === 'basement') PTYPEN.push({ name, cr, brutto, nur, partner: 'basement' });
+    else TARIFE[name] = { name: '', cr, nur, einladung: !!g('einladung'), brutto };
+    log('Cem (Admin)', `Neue Pauschale angelegt: ${name} (${cr} Credits, ${eur(brutto)})`); render(); meldung('f-pauschale-msg', `${name} angelegt. Ab jetzt beim Konto anlegen wählbar.`, true); return;
+  }
+  if (e.target.id === 'f-konto') {
+    const a = S.kontoArt, name = String(g('name') || '').trim(), mail = String(g('mail') || '').trim(), tel = String(g('tel') || '').trim();
+    if (!name || !mail) { meldung('f-konto-msg', 'Name und E-Mail fehlen.', false); return; }
+    const link = 'app.cloudstudios.de/einladung/' + Math.random().toString(36).slice(2, 8);
+    if (a === 'partner') { const pid = g('partner'); S.zugaenge.push({ name, mail, partner: pid }); log('Cem (Admin)', `Partner-Zugang für ${name} (${PARTNER[pid].name}) angelegt`); S.einladung = { name, mail, link, ansicht: 'Partner-Ansicht ' + PARTNER[pid].name }; render(); return; }
+    if (a === 'team') { const r = g('rolle'); S.team.push({ name, mail, rolle: r }); log('Cem (Admin)', `Team-Konto ${name} (${ROLLEN[r].name}) angelegt`); S.einladung = { name, mail, link, ansicht: 'Team-Ansicht als ' + ROLLEN[r].name }; render(); return; }
+    const id = 'k' + neueId(), kn = naechsteKN(), mon = MONATE[datum(0).getUTCMonth()];
+    const v = { name, kn, mitglied: null, tel: tel || '—', mail, status: g('unterlagen') ? 'Freigegeben' : 'Versendet', seit: String(datum(0).getUTCMonth() + 1).padStart(2, '0') + '/' + datum(0).getUTCFullYear(), notiz: String(g('notiz') || '') };
+    const mEnde = { bis: 'Monatsende', bisAbs: abs(6, 24) };
+    let info = '';
+    if (a === 'paket') {
+      const n = +g('paket'), rn = String(g('rn') || '').trim().toUpperCase(), bonus = Math.max(0, Math.min(10, +g('bonus') || 0));
+      S.kunden[id] = v;
+      if (rn) { S.posten.push({ id: neueId(), kunde: id, art: 'Paket ' + n, credits: n, bis: '3 Monate ab Zahlung', bisAbs: 90 * 24, nur: null, rn }); info = `${n} Credits geladen`; } else { S.anfragen.push({ id: neueId(), art: 'paket', kunde: id, text: `Paket ${n} beim Anlegen vereinbart, Zahlung offen`, menge: n, status: 'offen' }); info = 'Paket wartet auf Zahlung (unter Anfragen)'; }
+      if (bonus) S.posten.push({ id: neueId(), kunde: id, art: 'Willkommens-Bonus', credits: bonus, bis: '3 Monate', bisAbs: 90 * 24, nur: ['s1', 's3'], rn: '' });
+    } else if (a === 'mitglied') {
+      const tid = g('tarif'), T = TARIFE[tid]; v.mitglied = (tid + ' ' + T.name).trim(); S.kunden[id] = v;
+      if (g('beginn') === 'jetzt') S.posten.push({ id: neueId(), kunde: id, art: `Mitglied ${mon}`, credits: T.cr, ...mEnde, nur: T.nur || null, rn: String(g('vn') || 'VN offen') });
+      info = `${tid} · ${T.cr} Credits ${g('beginn') === 'jetzt' ? 'ab sofort' : 'ab dem Monatsersten'}`;
+    } else if (a === 'basement') {
+      const T = PTYPEN[+g('pauschale') || 0]; v.mitglied = T.name; S.kunden[id] = v; S.pauschalen.push({ kunde: id, name: T.name, brutto: T.brutto });
+      S.posten.push({ id: neueId(), kunde: id, art: `${T.name} · ${mon}`, credits: T.cr, ...mEnde, nur: T.nur, rn: 'Pauschale', basement: true }); info = `${T.cr} Basement-Credits für Studio 3`;
+    } else {
+      v.label = g('lrolle'); S.kunden[id] = v; S.posten.push({ id: neueId(), kunde: id, art: `Label-Credits ${mon}`, credits: 20, ...mEnde, nur: ['s1'], rn: 'Clouds Records' }); info = '20 Label-Credits für Studio 1';
+    }
+    if (g('s5')) S.s5frei.push(id);
+    log('Cem (Admin)', `Konto ${kn} ${name} angelegt (${kontoTyp(v)})`);
+    S.einladung = { name, mail, link, ansicht: 'Kunden-App' };
+    render(); meldung('f-konto-msg', `${kn} angelegt · ${info}${v.status !== 'Freigegeben' ? ' · Türcode erst nach unterschriebener Hausordnung' : ''}.`, true); return;
+  }
+  if (e.target.id === 'f-brett') {
+    const text = String(g('text') || '').trim(); if (!text) return;
+    const pid = e.target.dataset.partner, von = e.target.dataset.von;
+    S.brett.push({ id: neueId(), partner: pid, von, text, zeit: UHR, neu: true });
+    log(von, 'Mitteilung: ' + text.slice(0, 60));
+    if (von !== 'CloudStudios') teamMeldung(`Mitteilung von ${PARTNER[pid].name}`, text);
+    render(); toast(von === 'CloudStudios' ? `An ${PARTNER[pid].name} gesendet.` : 'An CloudStudios gesendet.'); return;
+  }
+  if (e.target.id === 'f-zustand') {
+    const raum = g('raum'), text = String(g('text') || '').trim(), datei = g('foto');
+    if (!text) { meldung('f-zustand-msg', 'Bitte kurz beschreiben, was los ist.', false); return; }
+    const b = letzteBuchungVor(raum), raumName = raum === 'gemein' ? 'Küche & Chill-Area' : ST[raum].name;
+    S.anfragen.push({ id: neueId(), art: 'zustand', partner: S.partner, kunde: b && b.kunde, buchung: b && b.id, raumName, text, foto: datei && datei.name ? datei.name : '', status: 'offen' });
+    log(PARTNER[S.partner].name, `Zustand gemeldet: ${raumName} · ${text.slice(0, 50)}`);
+    teamMeldung(`Zustand · ${raumName} (${PARTNER[S.partner].name})`, text + (b ? ` · letzte Buchung: ${wer(b)}` : ''), b && b.id);
+    S.zForm = { raum, text: '', foto: '' }; render(); meldung('f-zustand-msg', 'Gesendet. CloudStudios kümmert sich und meldet sich bei Ihnen.', true); return;
+  }
+  if (e.target.id === 'f-partner') {
+    const studio = g('studio'), tag = +g('tag'), von = +g('von'), bis = +g('bis');
+    if (bis <= von) { meldung('f-partner-msg', 'Ende muss nach Beginn liegen.', false); return; }
+    if (belegt(studio, tag, von, bis)) { meldung('f-partner-msg', 'In dieser Zeit ist schon gebucht.', false); return; }
+    S.buchungen.push({ id: neueId(), studio, tag, von, bis, status: 'blockiert', grund: 'Eigennutzung ' + PARTNER[S.partner].name, partner: S.partner, credits: 0, extras: [] });
+    log(PARTNER[S.partner].name, `${ST[studio].name} ${TAGE[tag]} ${von}–${bis} Uhr blockiert`);
+    S.pTag = tag; render(); meldung('f-partner-msg', 'Blockiert. Kunden sehen den Slot als belegt.', true);
+  }
+});
+function ausHash() { const h = (location.hash || '').slice(1); if (h.startsWith('partner-') && PARTNER[h.slice(8)]) { if (S.partner !== h.slice(8) || S.sicht !== 'partner') S.pTab = 'uebersicht'; S.sicht = 'partner'; S.partner = h.slice(8); } else if (['intern', 'kunde', 'partner', 'regeln'].includes(h)) S.sicht = h; render(); }
+window.addEventListener('hashchange', ausHash);
+for (let i = 0; i < 7; i++) S.codes[i] = CODES7[i];
+window.CS = { S, render, toast, meldung, alertKarte, ST, STUDIOS, TAGE, HEUTE, TARIFE, PTYPEN, ROLLEN, PARTNER, RECHTE, EVENTS, ARTIKEL, datum, abs, fmt, eur, esc, guthaben, belegt, eventPreis };
+if (window.CS_CONFIG) { window.CS_LIVE = true; } else { seed(); ausHash(); }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script src="live.js"></script>
+</body>
+</html>

@@ -320,7 +320,7 @@ end $$;
 create or replace function stornieren(p_buchung bigint, p_kulanz boolean default false)
 returns text
 language plpgsql security definer set search_path = public as $$
-declare v_rolle text := meine_rolle(); b buchungen; v_erstatten boolean;
+declare v_rolle text := meine_rolle(); b buchungen; v_erstatten boolean; v_mitglied boolean; v_frist interval; v_halb numeric;
 begin
   if v_rolle is null then raise exception 'NICHT_ANGEMELDET'; end if;
   select * into b from buchungen where id = p_buchung for update;
@@ -338,7 +338,24 @@ begin
     return 'STORNIERT';
   end if;
 
-  v_erstatten := b.credits > 0 and (lower(b.zeitraum) - now() > interval '24 hours' or p_kulanz);
+  -- Mitglieds-, Label- und Basement-Credits: Frist 12 Std., danach halbe Credits. Paket-Credits: 24 Std., danach alle weg.
+  v_mitglied := exists (select 1 from zuordnungen z join credit_posten p on p.id = z.posten
+                         where z.buchung = b.id and p.art in ('mitglied','label','basement'));
+  v_frist := case when v_mitglied then interval '12 hours' else interval '24 hours' end;
+  v_erstatten := b.credits > 0 and (lower(b.zeitraum) - now() > v_frist or p_kulanz);
+
+  if b.credits > 0 and not v_erstatten and v_mitglied then
+    -- Hälfte zurück: Zuordnungen und Buchung auf die angerechnete Hälfte kürzen
+    v_halb := round(b.credits / 2, 2);
+    update zuordnungen set credits = round(credits / 2, 2) where buchung = b.id;
+    update buchungen set status = 'storniert', storniert_von = auth.uid(), storniert_am = now(),
+                         erstattet = false, credits = v_halb
+     where id = p_buchung;
+    insert into bewegungen(kunde, art, credits, buchung, von, notiz)
+    values (b.kunde, 'storno', b.credits - v_halb, b.id, auth.uid(), 'Spätes Storno Mitglied: halbe Credits angerechnet');
+    perform log_aktion('stornieren', jsonb_build_object('buchung', p_buchung, 'halb', true));
+    return 'HALB_ERSTATTET';
+  end if;
 
   update buchungen set status = 'storniert', storniert_von = auth.uid(), storniert_am = now(),
                        erstattet = v_erstatten
@@ -579,7 +596,7 @@ begin
    order by lower(b.zeitraum);
 end $$;
 
--- Partner-Abrechnung je Monat. BlackClouds: Festbetrag je genutzter Stunde.
+-- Partner-Abrechnung je Monat. BlackClouds: Credits 14 / 35 € je Stunde, Walk-In 70 % vom Bruttopreis.
 -- Basement: 5 € je CloudStudios-Credit in Studio 3 + 50 % netto der Basement-Pauschalen.
 -- Gezählt werden Buchungen mit Termin im Monat, nicht erstattet (späte Stornos zählen wie genutzt).
 create or replace function partner_abrechnung(p_monat date, p_partner text default null)
@@ -590,20 +607,29 @@ declare v_von date := date_trunc('month', p_monat)::date; v_bis date := monatsen
 begin
   if meine_rolle() not in ('admin','partner') then raise exception 'KEIN_ZUGRIFF'; end if;
   return query
-  -- BlackClouds: Stunden aller gebuchten, nicht erstatteten Termine (Credits und Walk-In)
-  select s.partner, s.name || ' · Stunden', round(sum(extract(epoch from upper(b.zeitraum) - lower(b.zeitraum)) / 3600)::numeric, 2),
-         round(sum(extract(epoch from upper(b.zeitraum) - lower(b.zeitraum)) / 3600)::numeric * s.partner_eur_std, 2)
+  -- BlackClouds, Credits: Festbetrag je angerechneter Stunde (= angerechnete Credits / Credits pro Stunde).
+  -- Späte Stornos zählen so weit, wie dem Kunden Credits angerechnet wurden (Mitglieder: halb).
+  select s.partner, s.name || ' · Credit-Stunden', round(sum(b.credits / s.credits_pro_std), 2),
+         round(sum(b.credits / s.credits_pro_std) * s.partner_eur_std, 2)
     from buchungen b join studios s on s.id = b.studio
    where s.partner_eur_std is not null and b.status in ('gebucht','storniert') and not b.erstattet
-     and (b.status = 'gebucht' or b.credits > 0)
+     and b.credits > 0
      and berlin_datum(lower(b.zeitraum)) between v_von and v_bis
      and (v_partner is null or s.partner = v_partner)
-   group by s.partner, s.name, s.partner_eur_std
+   group by s.partner, s.name, s.partner_eur_std, s.credits_pro_std
   union all
-  -- Basement: CloudStudios-Credits in Studio 3 (ohne Basement-Credits)
+  -- BlackClouds, Walk-In: 70 % des vom Kunden gezahlten Bruttopreises
+  select s.partner, s.name || ' · Walk-In (70 % brutto)', count(*)::numeric, round(sum(b.preis_brutto) * 0.7, 2)
+    from buchungen b join studios s on s.id = b.studio
+   where s.partner = 'blackclouds' and b.status = 'gebucht' and b.credits = 0 and b.preis_brutto is not null
+     and berlin_datum(lower(b.zeitraum)) between v_von and v_bis
+     and (v_partner is null or s.partner = v_partner)
+   group by s.partner, s.name
+  union all
+  -- Basement: CloudStudios-Credits in Studio 3 (ohne Basement- und Bonus-Credits)
   select 'basement', 'Studio 3 · CloudStudios-Credits', coalesce(sum(z.credits),0), coalesce(sum(z.credits),0) * 5
     from zuordnungen z join buchungen b on b.id = z.buchung join credit_posten p on p.id = z.posten
-   where b.studio = 's3' and not b.erstattet and p.art <> 'basement'
+   where b.studio = 's3' and not b.erstattet and p.art not in ('basement','bonus')
      and berlin_datum(lower(b.zeitraum)) between v_von and v_bis
   having (v_partner is null or v_partner = 'basement')
   union all
@@ -684,16 +710,16 @@ create table if not exists tarife (
   aktiv             boolean not null default true
 );
 insert into tarife (id,name,art,credits_monat,beitrag_brutto,nur_studios,partner_max_monat,nur_einladung) values
-  ('PA 201','Multi-Studio S','mitglied',20,0,null,null,false),
-  ('PA 202','Multi-Studio M','mitglied',30,0,null,null,false),
-  ('PA 203','Multi-Studio L','mitglied',40,0,null,null,false),
-  ('PA 204','Multi-Studio XL','mitglied',50,0,null,null,false),
-  ('PA 210','Family & Friends','mitglied',24,0,array['s1'],null,true),
+  ('PA 201','Multi-Studio S','mitglied',20,267.75,null,null,false),
+  ('PA 202','Multi-Studio M','mitglied',30,392.70,null,null,false),
+  ('PA 203','Multi-Studio L','mitglied',40,476.00,null,null,false),
+  ('PA 204','Multi-Studio XL','mitglied',50,535.50,null,null,false),
+  ('PA 210','Family & Friends','mitglied',24,178.50,array['s1'],null,true),
   ('PA 220','CloudsMember','mitglied',60,654.50,null,30,true),
-  ('Basement 40','Basement 40','basement',40,300,array['s3'],null,false),
+  ('PA 230','Basement-Pauschale','basement',40,300,array['s3'],null,false),
   ('Label 20','Clouds Records','label',20,0,array['s1'],null,false)
 on conflict (id) do nothing;
--- Beiträge PA 201–210 im neuen Credit-Modell: in der App unter Tarife eintragen.
+-- Beiträge brutto laut Preisliste 2027; Änderungen in der App unter Tarife.
 
 -- Einstellungen (Schlüssel → Wert), z. B. Kriterien der Studio-5-Prüfliste
 create table if not exists einstellungen (
