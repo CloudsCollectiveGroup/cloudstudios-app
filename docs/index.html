@@ -143,7 +143,10 @@ const datum = (i) => new Date(HEUTE + i * 864e5);
 // Buchbar: heute bis Ende des übernächsten Monats
 const ENDE = Date.UTC(+jetztTeile.year, +jetztTeile.month + 2, 0);
 const TAGE = Array.from({ length: Math.round((ENDE - HEUTE) / 864e5) + 1 }, (_, i) => { const d = datum(i); return WT[d.getUTCDay()] + ' ' + String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.'; });
-TAGE[-1] = 'Gestern';
+// Rückblick: Team und Partner sehen die letzten 62 Tage (nur ansehen), Kunden ab heute
+const VOR = 62;
+for (let i = 1; i <= VOR; i++) { const d = datum(-i); TAGE[-i] = WT[d.getUTCDay()] + ' ' + String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.'; }
+const MINTAG = (k) => (k === 'ftag' ? 0 : -VOR);
 const abs = (tag, std) => tag * 24 + std;
 const STUDIOS = [
   { id: 's1', name: 'Studio 1', sub: '1 Cr/Std.', cph: 1, partner: null, selbst: true },
@@ -413,20 +416,20 @@ function planHTML(tag, { studios, sicht, partner }) {
 const KURZ = { s1: 'S1', s3: 'S3', s4: 'S4', s5: 'S5', lounge: 'LG' };
 const montagVon = (i) => { const wd = (datum(i).getUTCDay() + 6) % 7; return i - wd; };
 function kalenderHTML(k, { studios, sicht, partner, schmal }) {
-  const ansicht = S.ansicht[k], tag = S[k], attr = 'data-k' + k;
+  const ansicht = S.ansicht[k], tag = S[k], attr = 'data-k' + k, min = MINTAG(k);
   const p = (h) => ((h - 8) / 16 * 100).toFixed(2) + '%';
   const sel = datum(tag), Y = sel.getUTCFullYear(), M = sel.getUTCMonth();
   const tagesBuchungen = (i) => S.buchungen.filter((b) => aktiv(b) && b.tag === i && studios.includes(b.studio) && !(b.gruppe && b.studio === 's1' && studios.includes('lounge'))).sort((x, y) => x.von - y.von);
   let zurueck, vor, titel, inhalt;
   if (ansicht === 'tag') {
-    zurueck = tag - 1; vor = tag + 1; titel = TAGE[tag] + (tag === 0 ? ' · heute' : '');
+    zurueck = tag - 1; vor = tag + 1; titel = TAGE[tag] + (tag === 0 ? ' · heute' : tag < 0 ? ' · vorbei' : '');
     inhalt = planHTML(tag, { studios, sicht, partner });
   } else if (ansicht === 'woche') {
     const mo = montagVon(tag); zurueck = mo - 7; vor = mo + 7;
     const fd = (i) => { const d = datum(i); return String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.'; };
     titel = 'Mo ' + fd(mo) + ' – So ' + fd(mo + 6);
     const zeilen = Array.from({ length: 7 }, (_, j) => {
-      const i = mo + j, d = datum(i), vorbei = i < 0, ausser = i >= TAGE.length;
+      const i = mo + j, d = datum(i), vorbei = i < min, ausser = i >= TAGE.length;
       const bahnen = studios.map((sid) => {
         const bl = vorbei || ausser ? '' : S.buchungen.filter((b) => aktiv(b) && b.tag === i && b.studio === sid).map((b) => { const a = anzeige(b, sicht, partner); return `<div class="block f-${a.f}" ${sicht === 'intern' ? `data-detail="${b.id}" role="button" tabindex="0" style="cursor:pointer;` : 'style="'}left:${p(Math.max(8, b.von))};width:calc(${((b.bis - Math.max(8, b.von)) / 16 * 100).toFixed(2)}% - 2px);top:1px;bottom:1px;padding:0 4px;font-size:10px;line-height:16px;border-left-width:2px" title="${esc(a.titel)} ${b.von}–${b.bis}">${schmal ? '' : esc(a.titel)}</div>`; }).join('');
         return `<div style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:4px;align-items:center"><span class="mono" style="font-size:9px">${KURZ[sid]}</span><div class="bahn" style="height:20px;border-radius:5px">${bl}${i === 0 ? `<div class="jetzt" style="left:${p(JETZT)};top:-2px;bottom:-2px"></div>` : ''}</div></div>`;
@@ -444,7 +447,7 @@ function kalenderHTML(k, { studios, sicht, partner, schmal }) {
     titel = MONATE[M] + ' ' + Y;
     const kacheln = Array.from({ length: versatz }, () => '<div></div>');
     for (let t = 1; t <= tim; t++) {
-      const i = idx0 + t - 1, vorbei = i < 0, ausser = i >= TAGE.length, liste = vorbei || ausser ? [] : tagesBuchungen(i);
+      const i = idx0 + t - 1, vorbei = i < min, ausser = i >= TAGE.length, liste = vorbei || ausser ? [] : tagesBuchungen(i);
       const eintraege = schmal
         ? `<span style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center">${liste.slice(0, 6).map((b) => `<i style="width:6px;height:6px;border-radius:50%;background:var(--${anzeige(b, sicht, partner).f === 'belegt' ? 'grau' : anzeige(b, sicht, partner).f})"></i>`).join('')}</span>`
         : liste.slice(0, 3).map((b) => { const a = anzeige(b, sicht, partner); return `<span class="f-${a.f}" style="display:block;border-left:2px solid;border-radius:4px;padding:1px 4px;font-size:10px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left">${b.von} ${b.gruppe ? 'LG+S1' : KURZ[b.studio]} ${esc(a.titel)}</span>`; }).join('') + (liste.length > 3 ? `<span class="hinweis" style="font-size:10px">+${liste.length - 3} weitere</span>` : '');
@@ -454,8 +457,8 @@ function kalenderHTML(k, { studios, sicht, partner, schmal }) {
     }
     inhalt = `<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((w) => `<div class="mono" style="padding:2px 0">${w}</div>`).join('')}${kacheln.join('')}</div>`;
   }
-  const z = Math.max(0, zurueck), v = Math.min(TAGE.length - 1, vor);
-  const keinZurueck = ansicht === 'tag' ? tag <= 0 : ansicht === 'woche' ? montagVon(tag) <= montagVon(0) : (Y === datum(0).getUTCFullYear() && M === datum(0).getUTCMonth());
+  const z = Math.max(min, zurueck), v = Math.min(TAGE.length - 1, vor);
+  const keinZurueck = ansicht === 'tag' ? tag <= min : ansicht === 'woche' ? montagVon(tag) <= montagVon(min) : (Y === datum(min).getUTCFullYear() && M === datum(min).getUTCMonth());
   return `<div class="zeile" style="flex-wrap:wrap;gap:8px;margin-bottom:10px">
     <div class="chips" role="group" aria-label="Ansicht">${[['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat']].map(([id, l]) => `<button class="${ansicht === id ? 'aktiv' : ''}" data-ansicht="${k}:${id}">${l}</button>`).join('')}</div>
     <div class="chips" style="align-items:center"><button ${attr}="${z}" aria-label="Zurück" ${keinZurueck ? 'disabled' : ''}>‹</button>
@@ -467,7 +470,7 @@ const LEGENDE = `<div class="legende"><span><i style="background:var(--gruen)"><
 
 function monatsZahlen() {
   const tage = TAGE.length, monatEnde = Math.round((Date.UTC(datum(0).getUTCFullYear(), datum(0).getUTCMonth() + 1, 1) - HEUTE) / 864e5);
-  const imMonat = (b) => b.tag < monatEnde;
+  const imMonat = (b) => b.tag >= -2 && b.tag < monatEnde;
   const gebucht = S.buchungen.filter((b) => imMonat(b) && (b.status === 'gebucht' || (b.status === 'storniert' && b.credits && !b.erstattet)));
   const verfuegbar = monatEnde * 16;
   const auslastung = ['s1', 's3', 's4', 's5'].map((sid) => ({ sid, std: gebucht.filter((b) => b.studio === sid).reduce((a, b) => a + (b.bis - b.von), 0) }));
@@ -476,7 +479,7 @@ function monatsZahlen() {
   const verfallen = S.posten.filter((p) => p.bisAbs < JETZT).reduce((a, p) => a + Math.max(0, postenRest(p)), 0);
   const walkin = S.buchungen.filter((b) => b.status === 'gebucht' && b.preis && imMonat(b)).reduce((a, b) => a + b.preis, 0);
   const waerme = Array.from({ length: 7 }, () => Array(16).fill(0));
-  for (const b of S.buchungen.filter((x) => aktiv(x) && x.studio !== 'lounge' && x.status !== 'blockiert')) {
+  for (const b of S.buchungen.filter((x) => x.tag >= -2 && aktiv(x) && x.studio !== 'lounge' && x.status !== 'blockiert')) {
     const wd = (datum(b.tag).getUTCDay() + 6) % 7;
     for (let h = Math.max(8, b.von); h < Math.min(24, b.bis); h++) waerme[wd][h - 8]++;
   }
@@ -910,7 +913,7 @@ function letzteBuchungVor(raum) {
   return S.buchungen.filter((b) => ['gebucht', 'geschlossen'].includes(b.status) && ids.includes(b.studio) && abs(b.tag, b.bis) <= JETZT + 0.01 && !b.partner).sort((x, y) => abs(y.tag, y.bis) - abs(x.tag, x.bis))[0]
     || S.buchungen.filter((b) => ['gebucht', 'geschlossen'].includes(b.status) && ids.includes(b.studio) && b.tag === 0 && b.von <= JETZT && !b.partner).sort((x, y) => y.von - x.von)[0];
 }
-function tagName(i) { return i < 0 ? 'Gestern' : TAGE[i]; }
+function tagName(i) { return i === -1 ? 'Gestern' : TAGE[i]; }
 function wer(b) { if (!b) return null; if (b.kunde) return `${S.kunden[b.kunde].name} · ${S.kunden[b.kunde].kn}`; if (b.gast) return `${b.gast}${b.kn ? ' · ' + b.kn : ''}`; return b.grund || 'Veranstaltung'; }
 function zustandKarte(a2) {
   const b = S.buchungen.find((x) => x.id === a2.buchung);
@@ -1174,7 +1177,7 @@ document.addEventListener('click', (e) => {
   const d = t.dataset;
   if ('devtoggle' in d) { S.devOffen = !S.devOffen; render(); return; }
   if (d.ansicht) { const [k, a] = d.ansicht.split(':'); S.ansicht[k] = a; render(); return; }
-  for (const k of ['tag', 'ftag', 'pTag']) { const v = t.getAttribute('data-k' + k); if (v !== null) { S[k] = Math.max(0, Math.min(TAGE.length - 1, +v)); if (k === 'ftag') S.form.tag = S[k]; if (d.zu) S.ansicht[k] = d.zu; render(); return; } }
+  for (const k of ['tag', 'ftag', 'pTag']) { const v = t.getAttribute('data-k' + k); if (v !== null) { S[k] = Math.max(MINTAG(k), Math.min(TAGE.length - 1, +v)); if (k === 'ftag') S.form.tag = S[k]; if (d.zu) S.ansicht[k] = d.zu; render(); return; } }
   if (d.ktab) { S.kTab = d.ktab; render(); return; }
   if (d.fstudio) { S.form.studio = d.fstudio; render(); return; }
   if (d.fextra) { S.form[d.fextra] = !S.form[d.fextra]; render(); return; }

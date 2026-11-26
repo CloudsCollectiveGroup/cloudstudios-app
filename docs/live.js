@@ -185,7 +185,7 @@
   async function laden() {
     if (ladeLauf) return ladeLauf;
     ladeLauf = (async () => {
-      try { abbilden(await rpc('app_daten', {})); await abrechnungLaden(); C.render(); leiste(); if (S.kontoMeldung) C.meldung('f-konto-msg', S.kontoMeldung.t, S.kontoMeldung.ok); }
+      try { const rueck = ICH && ICH.rolle !== 'kunde'; abbilden(await rpc('app_daten', rueck ? { p_von: new Date(Date.now() - 63 * 864e5).toISOString() } : {})); if (!rueck && ICH && ICH.rolle !== 'kunde') { abbilden(await rpc('app_daten', { p_von: new Date(Date.now() - 63 * 864e5).toISOString() })); } await abrechnungLaden(); C.render(); leiste(); if (S.kontoMeldung) C.meldung('f-konto-msg', S.kontoMeldung.t, S.kontoMeldung.ok); }
       finally { ladeLauf = null; }
     })();
     return ladeLauf;
