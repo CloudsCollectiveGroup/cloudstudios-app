@@ -526,7 +526,9 @@
           } else if (art === 'credits') await rpc('credits_buchen', { p_studio: studio, p_start: zeitpunkt(tag, start), p_stunden: std, p_kunde: g('kunde') });
           else if (art === 'block') await rpc('blockieren', { p_studio: studio, p_start: zeitpunkt(tag, start), p_ende: zeitpunkt(tag, start + std), p_grund: name || 'Blockiert' });
           else await rpc('veranstaltung_eintragen', { p_start: zeitpunkt(tag, start), p_ende: zeitpunkt(tag, Math.min(24, start + std)), p_titel: name || 'Veranstaltung' });
-          S.tag = tag; await laden(); msg('Eingetragen.', true);
+          S.tag = tag; await laden();
+          if (art === 'walkin') msg(new Date(zeitpunkt(tag, start)) < new Date() ? 'Eingetragen als Anfrage (grün). Der Start ist schon vorbei – jetzt gleich „Zahlung bestätigen“ mit Rechnungsnummer, sonst verfällt sie in 3 Stunden.' : 'Eingetragen als Anfrage (grün). Nach der Zahlung „Zahlung bestätigen“ – sonst wird der Slot vor Beginn wieder frei.', true);
+          else msg('Eingetragen.', true);
         } catch (err) { msg(fehlerText(err), false); }
         return;
       }

@@ -143,6 +143,7 @@ begin
       perform push_an_team('buchung', 'Buchung storniert', v_studio || ' · ' || v_wann || ' · ' || v_wer, 'bs' || new.id, new.storniert_von);
     elsif new.status = 'verfallen' then
       perform push_an(new.kunde, 'storno', 'Reservierung abgelaufen', v_studio || ' · ' || v_wann || ' – die Zahlung ist nicht rechtzeitig eingegangen.', null, 'bv' || new.id);
+      perform push_an_team('zahlung', 'Anfrage verfallen', v_wer || ' · ' || v_studio || ' · ' || v_wann || ' – nicht bestätigt, Slot ist wieder frei.', 'bv' || new.id);
     end if;
   end if;
   return new;

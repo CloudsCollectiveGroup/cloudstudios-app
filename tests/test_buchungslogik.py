@@ -14,7 +14,7 @@ def sh(cmd):
 
 def frische_db():
     sh(f'psql -h /tmp -p 5433 -U postgres -q -c "drop database if exists {DB}" -c "create database {DB}"')
-    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql", "supabase/04_push.sql", "supabase/05_label.sql"):
+    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql", "supabase/04_push.sql", "supabase/05_label.sql", "supabase/06_anfragen_erinnerung.sql"):
         sh(f"psql -h /tmp -p 5433 -U postgres -q -v ON_ERROR_STOP=1 -d {DB} -f {ROOT}/{f}")
 
 frische_db()
@@ -405,6 +405,21 @@ check("Kunde sieht Label-Verbrauch nicht", AR.fehler("select * from label_verbra
 AR.q("select anfrage_neu('label','10 Label-Credits nachbuchen','{\"menge\":10}')")
 C.q("select credits_aufladen(p_kunde => %s, p_art => 'label', p_credits => 10, p_notiz => 'Nachbuchung')", art)
 check("Nachbuchung zu gleichen Bedingungen (nur Studio 1, bis Monatsende)", su("select count(*) from credit_posten where kunde=%s and art='label' and nur_studios='{s1}' and gueltig_bis=(date_trunc('month', current_date) + interval '1 month - 1 day')::date", art)[0][0] == 2)
+
+print("30. Anfragen verfallen nicht still")
+nb = T.q("select anfrage_eintragen('s3', %s, 5, 'Nachtrag Lars', 'KN-054', null, 60, 'AN-CS-009')", t(0, -1))[0][0]
+check("Nachtrag mit vergangenem Start bleibt 3 Std. reserviert", su("select reserviert_bis > now() + interval '170 minutes' from buchungen where id=%s", nb)[0][0])
+su("select anfragen_verfallen_lassen()")
+check("…und verfällt nicht sofort", su("select status from buchungen where id=%s", nb)[0][0] == "angefragt")
+su("select push_anfragen_erinnern()")
+check("Erinnerung ans Team: Anfrage läuft ab", any(r[1] == "Anfrage läuft ab" and "Nachtrag Lars" in r[2] for r in q_push(cem)))
+n_vorher = len(q_push(cem)); su("select push_anfragen_erinnern()")
+check("Erinnerung nur einmal", len(q_push(cem)) == n_vorher)
+T.q("select zahlung_bestaetigen(%s, 'RN-CS-147')", nb)
+check("Nachtrag lässt sich bestätigen", su("select status, rechnung from buchungen where id=%s", nb)[0] == ("gebucht", "RN-CS-147"))
+vb = T.q("select anfrage_eintragen('s3', %s, 2, 'Walk-In Vergessen')", t(25, 10))[0][0]
+su("update buchungen set reserviert_bis = now() - interval '1 minute' where id=%s", vb); su("select anfragen_verfallen_lassen()")
+check("Verfallen: Team bekommt Meldung", any(r[1] == "Anfrage verfallen" and "Walk-In Vergessen" in r[2] for r in q_push(cem)))
 
 print(f"\n{ok} bestanden, {len(fails)} fehlgeschlagen")
 if fails: print("Fehlgeschlagen:", *fails, sep="\n  - "); sys.exit(1)
