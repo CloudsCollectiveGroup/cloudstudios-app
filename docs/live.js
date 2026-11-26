@@ -59,6 +59,7 @@
     S.sicht = team ? 'intern' : ICH.rolle === 'partner' ? 'partner' : 'kunde';
     if (ICH.rolle === 'partner') S.partner = ICH.partner;
     if (ICH.rolle === 'kunde') S.kunde = ICH.id;
+    S.labelBucher = !!ICH.label_bucher;
 
     // Tarife
     for (const k of Object.keys(C.TARIFE)) delete C.TARIFE[k];
@@ -345,7 +346,7 @@
 
   // ---------- Aktionen ----------
   document.addEventListener('click', (e) => { if (e.target.closest('[data-kontoart]')) S.kontoMeldung = null; }, true);
-  const UI_ONLY = ['aktezu', 'detailzu', 'detail', 'testzu', 'testliste', 'devtoggle', 'ansicht', 'ktag', 'kftag', 'kpTag', 'ktab', 'fstudio', 'fextra', 'galerie', 'raumzu', 'raum',
+  const UI_ONLY = ['aktezu', 'detailzu', 'detail', 'testzu', 'testliste', 'devtoggle', 'ansicht', 'ktag', 'kftag', 'kpTag', 'ktab', 'fstudio', 'fuer', 'fextra', 'galerie', 'raumzu', 'raum',
     'raumbuchen', 'ptab', 'etab', 'kontoart', 'brettziel', 'akte', 'mtab', 'ikal', 'itab', 'iart', 'schnell', 'korbplus', 'korbminus', 'bmodus', 'eart', 'egetraenk', 'esnacks', 'aufmax', 'gelesen'];
   const anfrage = (id) => S.anfragen.find((x) => x.id === +id);
   const buchung = (id) => S.buchungen.find((x) => x.id === +id);
@@ -402,8 +403,9 @@
         const f = S.form, ex = ['tlm103', 'u87'].filter((x) => f[x]);
         const notiz = ex.length ? 'Extras: ' + ex.map((x) => x === 'u87' ? 'Neumann U87' : 'Neumann TLM 103').join(', ') : null;
         try {
-          await rpc('credits_buchen', { p_studio: f.studio, p_start: zeitpunkt(f.tag, f.start), p_stunden: f.std, p_notiz: notiz });
-          S.kTab = 'start'; await laden(); C.toast(`Buchung bestätigt: ${C.ST[f.studio].name} ${C.TAGE[f.tag]} ${f.start}–${f.start + f.std} Uhr. Bitte bis ${f.start + f.std - 1}:45 räumen.`);
+          const fuer = S.fuer && S.kunden[S.fuer] ? S.fuer : null;
+          await rpc('credits_buchen', { p_studio: f.studio, p_start: zeitpunkt(f.tag, f.start), p_stunden: f.std, p_notiz: notiz, ...(fuer ? { p_kunde: fuer } : {}) });
+          S.kTab = 'start'; await laden(); C.toast(`Buchung bestätigt${fuer ? ' für ' + S.kunden[fuer].name : ''}: ${C.ST[f.studio].name} ${C.TAGE[f.tag]} ${f.start}–${f.start + f.std} Uhr. Bitte bis ${f.start + f.std - 1}:45 räumen.`);
         } catch (err) {
           const el = document.getElementById('k-msg'), m = String(err.message || '');
           if (el) { el.className = 'karte fehler'; el.style.marginTop = '10px';

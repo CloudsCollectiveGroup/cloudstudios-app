@@ -222,6 +222,16 @@ $$;
 -- UNGUELTIGE_DAUER, VERGANGENHEIT, NUR_AUF_ANFRAGE, STUDIO_INAKTIV,
 -- ZU_WENIG_CREDITS:<maximal buchbare Stunden>, SLOT_BELEGT
 -- ---------------------------------------------------------------------
+-- Clouds Records: Producer mit Label-Recht darf für Label-Artists buchen (Stand 26.11.2026)
+alter table profiles add column if not exists label_bucher boolean not null default false;
+create or replace function darf_fuer_artist(p_artist uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select p_artist is not null and p_artist <> auth.uid()
+     and exists (select 1 from profiles me where me.id = auth.uid() and me.aktiv and me.label_bucher)
+     and exists (select 1 from profiles a where a.id = p_artist and a.aktiv and a.rolle = 'kunde')
+     and exists (select 1 from credit_posten c where c.kunde = p_artist and c.art = 'label' and c.gueltig_bis >= berlin_datum(now()))
+$$;
+
 create or replace function credits_buchen(p_studio text, p_start timestamptz, p_stunden numeric, p_kunde uuid default null, p_notiz text default null)
 returns bigint
 language plpgsql security definer set search_path = public as $$
@@ -230,12 +240,17 @@ declare
   v_kunde uuid;
   v_st studios;
   v_bedarf numeric; v_offen numeric; v_nimm numeric; v_verfuegbar numeric;
-  v_tag date; v_id bigint; r record;
+  v_tag date; v_id bigint; r record; v_fuer boolean := false;
 begin
   if v_rolle is null then raise exception 'NICHT_ANGEMELDET'; end if;
   if v_rolle = 'kunde' then
-    if p_kunde is not null and p_kunde <> auth.uid() then raise exception 'KEIN_ZUGRIFF'; end if;
-    v_kunde := auth.uid();
+    if p_kunde is not null and p_kunde <> auth.uid() then
+      -- Producer mit Label-Recht bucht für einen Clouds-Records-Artist (nur dessen Label-Credits)
+      if not darf_fuer_artist(p_kunde) then raise exception 'KEIN_ZUGRIFF'; end if;
+      v_kunde := p_kunde; v_fuer := true;
+    else
+      v_kunde := auth.uid();
+    end if;
   elsif v_rolle in ('admin','team') then
     if not darf('eintragen') then raise exception 'KEIN_ZUGRIFF'; end if;
     if p_kunde is null then raise exception 'KUNDE_FEHLT'; end if;
@@ -268,7 +283,7 @@ begin
   select coalesce(sum(n.rest),0) into v_verfuegbar
     from nutzbare_posten(v_kunde, p_studio, v_tag) n
     join credit_posten p on p.id = n.posten
-   where p.gueltig_ab <= berlin_datum(p_start);
+   where p.gueltig_ab <= berlin_datum(p_start) and (not v_fuer or p.art = 'label');
   if v_verfuegbar < v_bedarf then
     raise exception 'ZU_WENIG_CREDITS:%', trim_scale(floor(v_verfuegbar / v_st.credits_pro_std * 2) / 2);
   end if;
@@ -286,7 +301,7 @@ begin
   v_offen := v_bedarf;
   for r in select n.* from nutzbare_posten(v_kunde, p_studio, v_tag) n
              join credit_posten p on p.id = n.posten
-            where p.gueltig_ab <= berlin_datum(p_start) loop
+            where p.gueltig_ab <= berlin_datum(p_start) and (not v_fuer or p.art = 'label') loop
     exit when v_offen <= 0;
     v_nimm := least(r.rest, v_offen);
     insert into zuordnungen(buchung, posten, credits) values (v_id, r.posten, v_nimm);
@@ -325,7 +340,8 @@ begin
   if v_rolle is null then raise exception 'NICHT_ANGEMELDET'; end if;
   select * into b from buchungen where id = p_buchung for update;
   if not found then raise exception 'NICHT_GEFUNDEN'; end if;
-  if v_rolle = 'kunde' and b.kunde is distinct from auth.uid() then raise exception 'KEIN_ZUGRIFF'; end if;
+  if v_rolle = 'kunde' and b.kunde is distinct from auth.uid()
+     and not (b.erstellt_von = auth.uid() and darf_fuer_artist(b.kunde)) then raise exception 'KEIN_ZUGRIFF'; end if;
   if v_rolle = 'partner' and not (b.status = 'blockiert' and b.eigennutzung_partner = mein_partner()) then raise exception 'KEIN_ZUGRIFF'; end if;
   if b.status not in ('angefragt','gebucht','geschlossen','blockiert') then raise exception 'NICHT_STORNIERBAR'; end if;
   if lower(b.zeitraum) <= now() and v_rolle <> 'admin' then raise exception 'BEREITS_BEGONNEN'; end if;

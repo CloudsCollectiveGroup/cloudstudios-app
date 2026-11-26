@@ -7,12 +7,13 @@ language plpgsql stable security definer set search_path = public as $$
 declare
   v_rolle text := meine_rolle(); v_partner text := mein_partner(); v_team boolean := ist_team();
   v_admin boolean := meine_rolle() = 'admin'; v_ich uuid := auth.uid(); v_heute date := berlin_datum(now());
+  v_lb boolean := coalesce((select label_bucher from profiles where id = auth.uid()), false);
   r jsonb := '{}'::jsonb;
 begin
   if v_rolle is null then raise exception 'NICHT_ANGEMELDET'; end if;
 
   r := r || jsonb_build_object('ich', (select jsonb_build_object('id', id, 'rolle', rolle, 'partner', partner,
-          'team_rolle', team_rolle, 'name', name, 'kn', kn,
+          'team_rolle', team_rolle, 'name', name, 'kn', kn, 'label_bucher', label_bucher,
           'mail', (select email from auth.users u where u.id = p.id)) from profiles p where id = v_ich));
 
   -- Kunden mit aktueller Mitgliedschaft
@@ -29,7 +30,7 @@ begin
                          and (m.aktiv_bis is null or m.aktiv_bis >= v_heute)),
           'label', exists (select 1 from credit_posten c where c.kunde = p.id and c.art = 'label' and c.gueltig_bis >= v_heute)
         ) order by p.kn nulls last, p.name)
-        from profiles p where p.rolle = 'kunde' and (v_team or p.id = v_ich
+        from profiles p where p.rolle = 'kunde' and (v_team or p.id = v_ich or (v_lb and darf_fuer_artist(p.id))
           or (v_partner = 'blackclouds' and (exists (select 1 from bewerbungen w where w.kunde = p.id)
                                              or exists (select 1 from freigaben f where f.kunde = p.id)))
           or (v_partner = 'basement' and exists (select 1 from mitgliedschaften m where m.kunde = p.id and m.basement_pauschale
@@ -47,7 +48,8 @@ begin
   r := r || jsonb_build_object('posten', coalesce((select jsonb_agg(jsonb_build_object(
           'id', c.id, 'kunde', c.kunde, 'art', c.art, 'credits', c.credits, 'rest', posten_rest(c.id),
           'ab', c.gueltig_ab, 'bis', c.gueltig_bis, 'nur', c.nur_studios, 'rn', c.rechnung, 'notiz', c.notiz) order by c.gueltig_bis, c.id)
-        from credit_posten c where c.gueltig_bis >= v_heute - 1 and (v_team or c.kunde = v_ich)), '[]'::jsonb));
+        from credit_posten c where c.gueltig_bis >= v_heute - 1 and (v_team or c.kunde = v_ich
+          or (v_lb and c.art = 'label' and darf_fuer_artist(c.kunde)))), '[]'::jsonb));
 
   -- Buchungen
   if v_team then
@@ -65,14 +67,14 @@ begin
               'status', b.status, 'kunde', b.kunde, 'credits', b.credits, 'erstattet', b.erstattet, 'grund', b.grund,
               'partner', b.eigennutzung_partner, 'storniert_am', b.storniert_am, 'eigen', true) x
               from buchungen b where b.zeitraum && tstzrange(p_von, p_bis)
-               and (b.kunde = v_ich or (v_partner is not null and b.eigennutzung_partner = v_partner))
+               and (b.kunde = v_ich or (v_lb and b.erstellt_von = v_ich and b.kunde is not null) or (v_partner is not null and b.eigennutzung_partner = v_partner))
             union all
             select jsonb_build_object('id', k.id, 'studio', k.studio, 'beginn', k.beginn, 'ende', k.ende,
               'status', case k.farbe when 'gruen' then 'angefragt' when 'rot' then 'geschlossen' when 'grau' then 'blockiert' else 'gebucht' end,
               'kunde', null, 'credits', 0, 'erstattet', false, 'grund', k.titel, 'lila', k.farbe = 'lila', 'eigen', false)
               from kalender(p_von, p_bis) k
              where not exists (select 1 from buchungen b where b.id = k.id
-                                and (b.kunde = v_ich or (v_partner is not null and b.eigennutzung_partner = v_partner)))
+                                and (b.kunde = v_ich or (v_lb and b.erstellt_von = v_ich and b.kunde is not null) or (v_partner is not null and b.eigennutzung_partner = v_partner)))
           ) s), '[]'::jsonb));
   end if;
 

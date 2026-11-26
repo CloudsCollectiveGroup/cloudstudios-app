@@ -14,7 +14,7 @@ def sh(cmd):
 
 def frische_db():
     sh(f'psql -h /tmp -p 5433 -U postgres -q -c "drop database if exists {DB}" -c "create database {DB}"')
-    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql", "supabase/04_push.sql", "supabase/05_label.sql", "supabase/06_anfragen_erinnerung.sql"):
+    for f in ("tests/00_supabase_stub.sql", "supabase/01_schema.sql", "supabase/03_app_daten.sql", "supabase/04_push.sql", "supabase/05_label.sql", "supabase/06_anfragen_erinnerung.sql", "supabase/07_label_fuer_artists.sql"):
         sh(f"psql -h /tmp -p 5433 -U postgres -q -v ON_ERROR_STOP=1 -d {DB} -f {ROOT}/{f}")
 
 frische_db()
@@ -420,6 +420,28 @@ check("Nachtrag lässt sich bestätigen", su("select status, rechnung from buchu
 vb = T.q("select anfrage_eintragen('s3', %s, 2, 'Walk-In Vergessen')", t(25, 10))[0][0]
 su("update buchungen set reserviert_bis = now() - interval '1 minute' where id=%s", vb); su("select anfragen_verfallen_lassen()")
 check("Verfallen: Team bekommt Meldung", any(r[1] == "Anfrage verfallen" and "Walk-In Vergessen" in r[2] for r in q_push(cem)))
+
+print("40. Producer bucht für Label-Artists")
+prod = benutzer("Anuj Rajan", kn="KN - 002"); PR = Als(prod)
+C.q("select mitgliedschaft_anlegen(%s, 'Label 60', current_date)", prod)
+check("Ohne Label-Recht: nicht für Artist buchen", PR.fehler("select credits_buchen('s1', %s, 2, %s)", t(5, 10), art) == "KEIN_ZUGRIFF")
+su("update profiles set label_bucher = true where id=%s", prod)
+vor_art = float(su("select coalesce(sum(posten_rest(id)),0) from credit_posten where kunde=%s and art='label'", art)[0][0])
+vor_prod = float(su("select coalesce(sum(posten_rest(id)),0) from credit_posten where kunde=%s", prod)[0][0])
+fb = PR.q("select credits_buchen('s1', %s, 3, %s)", t(1, 19), art)[0][0]
+check("Buchung läuft auf den Artist", su("select kunde, erstellt_von from buchungen where id=%s", fb)[0] == (art, prod))
+check("Artist-Label-Credits abgezogen", float(su("select coalesce(sum(posten_rest(id)),0) from credit_posten where kunde=%s and art='label'", art)[0][0]) == vor_art - 3)
+check("Producer-Credits unverändert", float(su("select coalesce(sum(posten_rest(id)),0) from credit_posten where kunde=%s", prod)[0][0]) == vor_prod)
+check("Nur Studio 1 (Label-Credits)", PR.fehler("select credits_buchen('s3', %s, 2, %s)", t(5, 18), art) is not None)
+check("Nicht für normale Kunden", PR.fehler("select credits_buchen('s1', %s, 2, %s)", t(6, 10), anna) == "KEIN_ZUGRIFF")
+d = PR.q("select app_daten()")[0][0]; d = d if isinstance(d, dict) else _j.loads(d)
+check("Producer sieht Artist in der App", any(k["id"] == art for k in d["kunden"]) and d["ich"]["label_bucher"])
+check("Producer sieht die Artist-Buchung", any(b["id"] == fb and b["eigen"] for b in d["buchungen"]))
+check("Producer sieht keine Fremdkunden", not any(k["id"] == anna for k in d["kunden"]))
+check("Producer kann die Artist-Buchung stornieren", PR.fehler("select stornieren(%s)", fb) is None)
+check("Artist bekommt Credits zurück", float(su("select coalesce(sum(posten_rest(id)),0) from credit_posten where kunde=%s and art='label'", art)[0][0]) == vor_art)
+fremd = AR.q("select credits_buchen('s1', %s, 2)", t(1, 13))[0][0]
+check("Selbst gebuchte Artist-Session kann Producer nicht stornieren", PR.fehler("select stornieren(%s)", fremd) == "KEIN_ZUGRIFF")
 
 print(f"\n{ok} bestanden, {len(fails)} fehlgeschlagen")
 if fails: print("Fehlgeschlagen:", *fails, sep="\n  - "); sys.exit(1)

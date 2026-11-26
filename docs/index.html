@@ -794,6 +794,7 @@ function raumSeite(id, modus) {
     <div class="mono" style="margin-top:14px">GUT ZU WISSEN</div><ul class="pruef" style="margin:6px 0 0;padding-left:18px;color:#C9C9CE">${r.regeln.map((x) => `<li>${esc(x)}</li>`).join('')}${r.id !== 'lounge' ? '<li>Mindestens 2 Stunden, kostenfrei stornierbar bis 24 Std. vorher</li>' : ''}</ul>
     ${fuss}`;
 }
+const labelArtists = () => (S.labelBucher ? Object.entries(S.kunden).filter(([id, x]) => id !== S.kunde && x.label).map(([id, x]) => ({ id, ...x })) : []);
 function kunde() {
   const k = S.kunden[S.kunde], g = guthaben(S.kunde), r = reserviert(S.kunde);
   const eigene = S.buchungen.filter((b) => b.kunde === S.kunde && b.status === 'gebucht' && abs(b.tag, b.bis) > JETZT).sort((a, b) => abs(a.tag, a.von) - abs(b.tag, b.von));
@@ -818,13 +819,16 @@ function kunde() {
     <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:6px">${['s1', 's3', 's4', 's5'].map((s) => { const b = belegt(s, 0, JETZT, JETZT + 0.01); return `<div class="karte" style="padding:10px;${!b && ST[s].selbst ? 'border-color:rgba(77,163,255,.5);background:rgba(77,163,255,.08)' : ''}"><b>${ST[s].name}</b><div class="hinweis">${!ST[s].selbst ? 'auf Anfrage' : b ? 'belegt' : 'jetzt frei'}</div></div>`; }).join('')}</div>
     <button class="primaer" style="width:100%;margin-top:14px;min-height:52px" data-ktab="buchen">Session buchen</button>`;
   } else if (S.kTab === 'buchen') {
-    const f = S.form, st = ST[f.studio], mitglied = !!k.mitglied;
+    const artists = labelArtists(); if (S.fuer && !artists.some((a) => a.id === S.fuer)) S.fuer = null;
+    if (S.fuer) S.form.studio = 's1';
+    const fuerK = S.fuer ? S.kunden[S.fuer] : null, gB = S.fuer ? guthaben(S.fuer) : g;
+    const f = S.form, st = ST[f.studio], mitglied = !!(fuerK || k).mitglied;
     const extraCr = ['tlm103', 'u87'].filter((e) => f[e]).reduce((a, e) => a + (mitglied ? EXTRAS[e].crMitglied : EXTRAS[e].cr), 0);
     const bedarf = f.std * st.cph + extraCr;
     const modus = `<div class="chips" role="group" aria-label="Art der Buchung" style="margin-bottom:12px"><button class="${S.bModus === 'studio' ? 'aktiv' : ''}" data-bmodus="studio">Studio buchen</button><button class="${S.bModus === 'event' ? 'aktiv' : ''}" data-bmodus="event">Veranstaltung anfragen</button></div>`;
     if (S.bModus === 'event') { inhalt = modus + eventFormHTML(k); } else
-    inhalt = modus + `<h2 style="font-size:22px">Studio buchen</h2><div class="hinweis">Guthaben: <b style="color:var(--gelb)">${fmt(g)} Credits</b></div>
-    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">${['s1', 's3', 's4', 's5'].map((s) => `<button class="${f.studio === s ? 'aktiv' : ''}" data-fstudio="${s}" style="text-align:left;min-height:56px;padding:8px 10px"><b>${ST[s].name}</b><br><span style="font-size:11px">${selbstBuchbar(s, S.kunde) ? fmt(ST[s].cph) + ' Cr/Std.' + (ST[s].selbst ? '' : ' · freigegeben') : 'nur auf Anfrage'}</span></button>`).join('')}</div>
+    inhalt = modus + `<h2 style="font-size:22px">Studio buchen</h2>${artists.length ? `<div class="mono" style="margin-top:6px">FÜR WEN?</div><div class="chips" role="group" aria-label="Für wen buchen" style="margin-top:6px"><button class="${!S.fuer ? 'aktiv' : ''}" data-fuer="">Für mich</button>${artists.map((a) => `<button class="${S.fuer === a.id ? 'aktiv' : ''}" data-fuer="${esc(a.id)}">${esc(a.name)} · ${fmt(guthaben(a.id))} Cr</button>`).join('')}</div>` : ''}<div class="hinweis" style="margin-top:6px">${fuerK ? `Gebucht wird auf <b>${esc(fuerK.name)}</b> (Label-Credits, nur Studio 1) · Guthaben: <b style="color:var(--gelb)">${fmt(gB)} Credits</b>` : `Guthaben: <b style="color:var(--gelb)">${fmt(g)} Credits</b>`}</div>
+    <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">${(S.fuer ? ['s1'] : ['s1', 's3', 's4', 's5']).map((s) => `<button class="${f.studio === s ? 'aktiv' : ''}" data-fstudio="${s}" style="text-align:left;min-height:56px;padding:8px 10px"><b>${ST[s].name}</b><br><span style="font-size:11px">${selbstBuchbar(s, S.kunde) ? fmt(ST[s].cph) + ' Cr/Std.' + (ST[s].selbst ? '' : ' · freigegeben') : 'nur auf Anfrage'}</span></button>`).join('')}</div>
     <div class="karte" style="margin-top:10px;padding:10px">${kalenderHTML('ftag', { studios: [f.studio], sicht: 'kunde', schmal: true })}</div>
     ${!selbstBuchbar(f.studio, S.kunde) ? `${s5Formular(f)}` : `
     <div class="raster" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px">
@@ -833,10 +837,10 @@ function kunde() {
     </div>
     <div class="mono" style="margin-top:10px">EXTRAS · TLM 102 IMMER INKLUSIVE</div>
     <div class="chips" style="margin-top:6px">${['tlm103', 'u87'].map((e) => { const weg = extraBelegt(e, f.tag, f.start, f.start + f.std); const p = mitglied ? EXTRAS[e].crMitglied : EXTRAS[e].cr; return `<button class="${f[e] && !weg ? 'aktiv' : ''}" data-fextra="${e}" ${weg ? 'disabled' : ''}>${EXTRAS[e].name} · ${weg ? 'vergeben' : p ? '+' + p + ' Cr' : 'inklusive'}</button>`; }).join('')}</div>
-    <div class="karte" style="margin-top:10px;background:rgba(77,163,255,.07);border-color:rgba(77,163,255,.3)"><div class="zeile"><span>${f.std} Std. × ${fmt(st.cph)} Cr${extraCr ? ' + Extras ' + extraCr : ''}</span><b>${fmt(bedarf)} Credits</b></div><div class="zeile"><span class="hinweis">Danach übrig</span><b>${bedarf <= g ? fmt(g - bedarf) : '—'}</b></div></div>
+    <div class="karte" style="margin-top:10px;background:rgba(77,163,255,.07);border-color:rgba(77,163,255,.3)"><div class="zeile"><span>${f.std} Std. × ${fmt(st.cph)} Cr${extraCr ? ' + Extras ' + extraCr : ''}</span><b>${fmt(bedarf)} Credits</b></div><div class="zeile"><span class="hinweis">Danach übrig</span><b>${bedarf <= gB ? fmt(gB - bedarf) : '—'}</b></div></div>
     <div class="hinweis" style="margin-top:6px">Wechselzeit ist inklusive: Bitte räumen Sie das Studio bis ${f.start + f.std - 1}:45 Uhr, damit die nächste Session pünktlich startet.</div>
     <div id="k-msg" aria-live="polite"></div>
-    <button class="primaer" style="width:100%;margin-top:10px;min-height:52px" data-kbuchen>Verbindlich buchen · ${fmt(bedarf)} Credits</button>`}`;
+    <button class="primaer" style="width:100%;margin-top:10px;min-height:52px" data-kbuchen>Verbindlich buchen${fuerK ? ' für ' + esc(fuerK.name) : ''} · ${fmt(bedarf)} Credits</button>`}`;
   } else if (S.kTab === 'raum') {
     inhalt = raumSeite(S.raum, 'kunde');
   } else if (S.kTab === 'shop') {
@@ -862,7 +866,8 @@ function kunde() {
     S.posten.filter((p) => p.kunde === S.kunde).forEach((p) => zeilen.push({ t: p.art, s: (p.rn ? p.rn + ' · ' : '') + 'gültig bis ' + p.bis, v: '+' + fmt(p.credits) }));
     S.buchungen.filter((b) => b.kunde === S.kunde).forEach((b) => { zeilen.push({ t: `${ST[b.studio].name} · ${b.bis - b.von} Std.`, s: `${TAGE[b.tag]} ${b.von}–${b.bis} · ${b.status}`, v: '−' + fmt(b.credits) }); if (b.erstattet) zeilen.push({ t: 'Storno-Gutschrift', s: `${TAGE[b.tag]} · mehr als 24 Std. vorher`, v: '+' + fmt(b.credits) }); });
     inhalt = `<h2 style="font-size:22px">Verlauf</h2><div class="liste" style="margin-top:12px">${zeilen.map((z) => `<div class="karte zeile" style="padding:10px 12px"><div><b style="font-size:14px">${esc(z.t)}</b><div class="hinweis">${esc(z.s)}</div></div><b style="font-family:'Space Grotesk';color:${z.v[0] === '+' ? 'var(--gelb)' : 'var(--ink)'}">${z.v}</b></div>`).join('')}</div>
-    <div class="mono" style="margin-top:14px">MEINE TERMINE</div><div class="liste" style="margin-top:6px">${eigene.map((b) => `<div class="karte zeile" style="padding:10px 12px"><span>${ST[b.studio].name} · ${TAGE[b.tag]} ${b.von}–${b.bis}</span><button data-kstorno="${b.id}">Stornieren</button></div>`).join('') || '<span class="hinweis">Keine kommenden Termine.</span>'}</div>`;
+    <div class="mono" style="margin-top:14px">MEINE TERMINE</div><div class="liste" style="margin-top:6px">${eigene.map((b) => `<div class="karte zeile" style="padding:10px 12px"><span>${ST[b.studio].name} · ${TAGE[b.tag]} ${b.von}–${b.bis}</span><button data-kstorno="${b.id}">Stornieren</button></div>`).join('') || '<span class="hinweis">Keine kommenden Termine.</span>'}</div>
+    ${(() => { const fa = S.labelBucher ? S.buchungen.filter((b) => b.kunde && b.kunde !== S.kunde && b.status === 'gebucht' && abs(b.tag, b.bis) > JETZT).sort((a, b) => abs(a.tag, a.von) - abs(b.tag, b.von)) : []; return fa.length ? `<div class="mono" style="margin-top:14px">FÜR ARTISTS GEBUCHT</div><div class="liste" style="margin-top:6px">${fa.map((b) => `<div class="karte zeile" style="padding:10px 12px"><span><b>${esc(S.kunden[b.kunde]?.name || 'Artist')}</b><br><span class="hinweis">${ST[b.studio].name} · ${TAGE[b.tag]} ${b.von}–${b.bis}</span></span><button data-kstorno="${b.id}">Stornieren</button></div>`).join('')}</div>` : ''; })()}`;
   } else {
     inhalt = `<h2 style="font-size:22px">Mein Konto</h2><div class="hinweis">${esc(k.name)} · ${k.kn}</div>
     <div class="karte liste" style="margin-top:12px">${S.posten.filter((p) => p.kunde === S.kunde && p.bisAbs >= JETZT).map((p) => { const r = postenRest(p); return `<div><div class="zeile"><span>${esc(p.art)}${p.nur ? ' · nur ' + p.nur.map((s) => ST[s].name).join(', ') : ''}</span><b>${fmt(r)}</b></div><div style="height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:4px"><div style="width:${Math.max(0, r / p.credits * 100)}%;height:6px;border-radius:3px;background:var(--gelb)"></div></div><div class="hinweis">gültig bis ${p.bis}</div></div>`; }).join('')}</div>
@@ -1179,6 +1184,7 @@ document.addEventListener('click', (e) => {
   if (d.ansicht) { const [k, a] = d.ansicht.split(':'); S.ansicht[k] = a; render(); return; }
   for (const k of ['tag', 'ftag', 'pTag']) { const v = t.getAttribute('data-k' + k); if (v !== null) { S[k] = Math.max(MINTAG(k), Math.min(TAGE.length - 1, +v)); if (k === 'ftag') S.form.tag = S[k]; if (d.zu) S.ansicht[k] = d.zu; render(); return; } }
   if (d.ktab) { S.kTab = d.ktab; render(); return; }
+  if ('fuer' in d) { S.fuer = d.fuer || null; if (S.fuer) S.form.studio = 's1'; render(); return; }
   if (d.fstudio) { S.form.studio = d.fstudio; render(); return; }
   if (d.fextra) { S.form[d.fextra] = !S.form[d.fextra]; render(); return; }
   if (d.zahlung) { const b = S.buchungen.find((x) => x.id === +d.zahlung); b.status = 'gebucht'; log('Team', `Zahlung bestätigt: ${b.gast}, ${ST[b.studio].name} ${TAGE[b.tag]}`); render(); return; }
