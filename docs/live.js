@@ -21,7 +21,10 @@
   const stdVon = (d) => { const t = teile(d); return +t.hour + +t.minute / 60; };
   const tagAusDatum = (s) => { const [y, m, d] = s.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - C.HEUTE) / 864e5); };
   const absVon = (iso) => { const d = new Date(iso); return tagVon(d) * 24 + stdVon(d); };
+  // Studio-Tag 08–08 Uhr: Stunden ab 24 gehören zur Nacht des Folgetags, Starts vor 08 Uhr zum Vortag
+  const NACHT = 8;
   const zeitpunkt = (tag, h) => {
+    if (h >= 24) return zeitpunkt(tag + 1, h - 24);
     const roh = C.HEUTE + tag * 864e5 + h * 36e5;
     for (const versatz of [1, 2]) { const d = new Date(roh - versatz * 36e5); if (tagVon(d) === tag && Math.abs(stdVon(d) - h) < 0.01) return d.toISOString(); }
     return new Date(roh - 36e5).toISOString();
@@ -87,8 +90,10 @@
 
     // Buchungen
     S.buchungen = d.buchungen.map((b) => {
-      const beginn = new Date(b.beginn), tag = tagVon(beginn), von = Math.round(stdVon(beginn) * 2) / 2, dauer = Math.round((new Date(b.ende) - beginn) / 18e5) / 2;
-      const x = { id: b.id, studio: b.studio, tag, von, bis: Math.min(24, von + dauer), status: b.status, kunde: b.kunde || null, credits: +b.credits || 0, extras: [],
+      const beginn = new Date(b.beginn), dauer = Math.round((new Date(b.ende) - beginn) / 18e5) / 2;
+      let tag = tagVon(beginn), von = Math.round(stdVon(beginn) * 2) / 2;
+      if (von < NACHT) { tag -= 1; von += 24; }
+      const x = { id: b.id, studio: b.studio, tag, von, bis: von + dauer, status: b.status, kunde: b.kunde || null, credits: +b.credits || 0, extras: [],
         erstattet: !!b.erstattet, grund: b.grund || null, partner: b.partner || null, gruppe: b.gruppe || null, gast: b.gast || null, kn: b.kn || null,
         preis: b.preis != null ? +b.preis : null, angebot: b.angebot || null, rechnung: b.rechnung || null, noShow: !!b.noshow,
         reserviertBis: b.reserviert_bis ? absVon(b.reserviert_bis) : null, stornoAm: b.storniert_am ? uhr(b.storniert_am) : null, stornoVon: b.storniert_von || null };
@@ -115,10 +120,11 @@
       platzhalter(w.kunde);
       const bew = { kuenstler: w.kuenstler, link: w.link, hoerer: w.hoerer_stufe, releases: w.releases_stufe, label: w.label || '', projekt: w.projekt, engineer: w.engineer, regeln: w.regeln };
       if (!S.bewerbungen[w.kunde]) S.bewerbungen[w.kunde] = bew;
-      const beginn = new Date(w.wunsch_start), tag = tagVon(beginn), start = stdVon(beginn);
+      const beginn = new Date(w.wunsch_start); let tag = tagVon(beginn), start = stdVon(beginn);
+      if (start < NACHT) { tag -= 1; start += 24; }
       S.anfragen.push({ id: 1e6 + w.id, dbBewerbung: w.id, art: 's5', kunde: w.kunde, status: ['offen', 'zugesagt'].includes(w.status) ? 'offen' : 'erledigt',
         partnerEntscheid: w.status === 'zugesagt' ? 'ja' : w.status === 'abgelehnt' ? 'nein' : undefined, tag, start, std: +w.stunden, bew,
-        text: `Studio 5: ${C.TAGE[tag] || deDatum(w.wunsch_start)}, ${start}–${start + +w.stunden} Uhr · ${w.projekt}` });
+        text: `Studio 5: ${C.TAGE[tag] || deDatum(w.wunsch_start)}, ${C.H(start)}–${C.H(start + +w.stunden)} Uhr · ${w.projekt}` });
     }
     for (const z of d.zustand || []) {
       platzhalter(z.kunde);
@@ -405,7 +411,7 @@
         try {
           const fuer = S.fuer && S.kunden[S.fuer] ? S.fuer : null;
           await rpc('credits_buchen', { p_studio: f.studio, p_start: zeitpunkt(f.tag, f.start), p_stunden: f.std, p_notiz: notiz, ...(fuer ? { p_kunde: fuer } : {}) });
-          S.kTab = 'start'; await laden(); C.toast(`Buchung bestätigt${fuer ? ' für ' + S.kunden[fuer].name : ''}: ${C.ST[f.studio].name} ${C.TAGE[f.tag]} ${f.start}–${f.start + f.std} Uhr. Bitte bis ${f.start + f.std - 1}:45 räumen.`);
+          S.kTab = 'start'; await laden(); C.toast(`Buchung bestätigt${fuer ? ' für ' + S.kunden[fuer].name : ''}: ${C.ST[f.studio].name} ${C.TAGE[f.tag]} ${C.H(f.start)}–${C.H(f.start + f.std)} Uhr. Bitte bis ${C.H(f.start + f.std - 1)}:45 räumen.`);
         } catch (err) {
           const el = document.getElementById('k-msg'), m = String(err.message || '');
           if (el) { el.className = 'karte fehler'; el.style.marginTop = '10px';
@@ -432,7 +438,7 @@
       if (d.noshow) { const b = buchung(d.noshow); await nach(() => rpc('nicht_erschienen_setzen', { p_buchung: b.id, p_wert: !b.noShow })); return; }
       if (d.paket) { await nach(() => rpc('anfrage_neu', { p_art: 'paket', p_text: `Paket ${d.paket} angefragt`, p_daten: { menge: +d.paket } }), 'Anfrage gesendet. Sie bekommen die Rechnung per Nachricht.'); return; }
       if ('problem' in d) { const txt = frage('Was ist los? Kurz beschreiben:'); if (!txt) return; await nach(() => rpc('anfrage_neu', { p_art: 'problem', p_text: txt }), 'Danke, das Team ist informiert.'); return; }
-      if ('s5anfrage' in d) { const f = S.form; await nach(() => rpc('anfrage_neu', { p_art: 's5', p_text: `Studio 5: ${C.TAGE[f.tag]}, ${f.start}–${f.start + f.std} Uhr`, p_studio: 's5', p_daten: { datum: isoTag(f.tag), start: f.start, std: f.std } }), 'Anfrage gesendet.'); return; }
+      if ('s5anfrage' in d) { const f = S.form; await nach(() => rpc('anfrage_neu', { p_art: 's5', p_text: `Studio 5: ${C.TAGE[f.tag]}, ${C.H(f.start)}–${C.H(f.start + f.std)} Uhr`, p_studio: 's5', p_daten: { datum: isoTag(f.tag), start: f.start, std: f.std } }), 'Anfrage gesendet.'); return; }
       if ('bestellen' in d) {
         const posten = Object.entries(S.korb).filter(([, n]) => n > 0).map(([id, n]) => ({ id, n }));
         if (!posten.length) return;
@@ -450,7 +456,7 @@
       }
       if ('eanfrage' in d) {
         const ef = S.eform, k = S.kunden[S.kunde], p = C.eventPreis(ef, !!k.mitglied), E = C.EVENTS[ef.art], tag = S.form.tag;
-        const text = `${E.name}, ${C.TAGE[tag]} ${ef.start}–${ef.start + p.dauer} Uhr, ${p.gaeste} Gäste, ca. ${C.eur(p.gesamt)}${ef.notiz ? ' · ' + ef.notiz : ''}`;
+        const text = `${E.name}, ${C.TAGE[tag]} ${C.H(ef.start)}–${C.H(ef.start + p.dauer)} Uhr, ${p.gaeste} Gäste, ca. ${C.eur(p.gesamt)}${ef.notiz ? ' · ' + ef.notiz : ''}`;
         const ok = await nach(() => rpc('anfrage_neu', { p_art: 'event', p_text: text, p_studio: 'lounge', p_daten: { datum: isoTag(tag), start: ef.start, ende: ef.start + p.dauer, camp: ef.camp || 0, eventArt: ef.art } }), 'Anfrage gesendet. Wir melden uns mit einem Angebot.');
         if (ok) { S.bModus = 'studio'; S.kTab = 'start'; C.render(); } return;
       }
